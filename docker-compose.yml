@@ -24,6 +24,7 @@ services:
       dockerfile: BattleShip.App/Dockerfile
       args:
         ApiBaseUrl: http://localhost:8080/
+        UseMockApi: "true"
     ports:
       - "8081:80"
     depends_on:
