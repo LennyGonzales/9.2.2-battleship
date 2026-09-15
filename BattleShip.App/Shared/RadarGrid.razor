@@ -1,0 +1,53 @@
+<section class="radar-panel radar-grid-panel">
+    <header class="hud-label radar-grid-panel__title">@Title</header>
+    <div class="radar-grid" style="--grid-size: @Board.Size">
+        @if (Board.Owner == BoardOwner.Opponent)
+        {
+            <div class="radar-sweep" aria-hidden="true"></div>
+            <div class="radar-scanlines" aria-hidden="true"></div>
+        }
+        @foreach (var cell in Board.Cells)
+        {
+            <button type="button"
+                    class="radar-cell @CellClass(cell.State)"
+                    disabled="@(!Interactive || !IsTargetable(cell.State))"
+                    @onclick="() => HandleClickAsync(cell)"
+                    aria-label="@($"{(char)('A' + cell.X)}{cell.Y + 1}")">
+                @if (cell.State is VisibleCellState.Hit or VisibleCellState.Sunk)
+                {
+                    <span class="radar-cell__ping" aria-hidden="true"></span>
+                }
+            </button>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public required BoardDto Board { get; set; }
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public EventCallback<(int X, int Y)> OnCellClick { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+
+    private static string CellClass(VisibleCellState state) => state switch
+    {
+        VisibleCellState.Unknown => "radar-cell--unknown",
+        VisibleCellState.Empty => "radar-cell--empty",
+        VisibleCellState.Ship => "radar-cell--ship",
+        VisibleCellState.Miss => "radar-cell--miss",
+        VisibleCellState.Hit => "radar-cell--hit",
+        VisibleCellState.Sunk => "radar-cell--sunk",
+        _ => "",
+    };
+
+    private static bool IsTargetable(VisibleCellState state) => state == VisibleCellState.Unknown;
+
+    private async Task HandleClickAsync(CellDto cell)
+    {
+        if (!Interactive || !IsTargetable(cell.State))
+        {
+            return;
+        }
+
+        await OnCellClick.InvokeAsync((cell.X, cell.Y));
+    }
+}
