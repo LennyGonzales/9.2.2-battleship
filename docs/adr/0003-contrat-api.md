@@ -16,10 +16,11 @@ Le front Blazor WebAssembly consomme l'API ASP.NET Core via HTTP. Le contrat RES
 
 ## Décision
 
-Option 2 retenue : `POST /api/games` retourne un `GameDto` sans aucune position de navire.
+Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `GameDto` sans aucune position de navire.
 
 - Body optionnel `CreateGameRequest` (`boardSize`, `difficulty`) avec défauts 10 × 10 et `Normal`
 - Réponse `201 Created` + header `Location: /api/games/{id}`
+- `GET /api/games/{id}` retourne `200` + `GameDto` ou `404` ProblemDetails (`detail: "Partie inconnue"`)
 - Erreurs de validation → `400` avec `ValidationProblemDetails` (FluentValidation)
 - Placement aléatoire des flottes joueur et ordinateur à la création (moteur `GameEngine`)
 
@@ -34,10 +35,12 @@ Option 2 retenue : `POST /api/games` retourne un `GameDto` sans aucune position 
 
 ```bash
 ./scripts/dotnet.sh test --filter "FullyQualifiedName~CreateGame"
+./scripts/dotnet.sh test --filter "FullyQualifiedName~GetGame"
 docker compose up --build -d api
 curl -i -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{"boardSize":10,"difficulty":"Normal"}'
 curl -i -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{"boardSize":4}'
-curl -s http://localhost:8080/openapi/v1.json | grep -F '"/api/games"'
+curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
+curl -s http://localhost:8080/openapi/v1.json | grep -F '"/api/games'
 ```
 
 Revoir si le contrat OpenAPI généré diverge de `swagger.yaml` après ajout des routes suivantes.

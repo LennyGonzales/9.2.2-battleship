@@ -66,4 +66,19 @@ curl -i -X POST http://localhost:8080/api/games \
 
 Réponse attendue en succès : `201 Created`, header `Location: /api/games/{id}`, corps `GameDto` JSON (sans positions de navires).
 
+## API — GET /api/games/{id}
+
+Endpoint implémenté : lecture de l'état visible d'une partie existante.
+
+```bash
+# Creer une partie puis lire son etat
+ID=$(curl -s -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{}' | jq -r .id)
+curl -i http://localhost:8080/api/games/$ID
+
+# Partie inconnue
+curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
+```
+
+Réponse attendue en succès : `200 OK`, corps `GameDto` JSON. Partie introuvable : `404 Not Found`, `application/problem+json`.
+
 Les statistiques de partie passent par gRPC-Web (non implémenté à ce stade).

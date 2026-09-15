@@ -1,15 +1,13 @@
 # Échanges décisifs avec l'IA
 
-## Date et sujet
+## Entrée 1 — 2026-03-15 : POST /api/games
 
-**2026-03-15 — Implémentation POST /api/games avec placement des flottes**
-
-- Outil / modèle si connu : Cursor (Composer)
-- Contexte : TP Bataille Navale ASP.NET (.NET 10, Minimal API, Docker-only). Contrat REST défini dans `swagger.yaml`. Première route métier à implémenter ; le template weather de l'API doit être remplacé.
-- Prompt réellement utilisé : « build le plan stp » en pointant le plan `post_api_games_fdd0a934.plan.md` — implémenter `POST /api/games` conforme à `swagger.yaml` : domaine minimal dans `BattleShip.Models`, placement aléatoire des flottes joueur et ordinateur, FluentValidation, persistance InMemory, tests xUnit, documentation (ADR 0003, `api.http`, README, REVUE-IA 1/3).
-- Réponse et hypothèses résumées : l'IA propose un flux Endpoint → Validator → GameEngine → Repository → GameMapper. Hypothèse : les deux flottes sont placées aléatoirement dès la création (pas de stub). Le `GameDto` ne contient aucune position de navire. Body absent ou `{}` → défauts (`boardSize` 10, `difficulty` Normal). Enums JSON en PascalCase (`Easy`, `Normal`, `Hard`). Échec de placement après 100 tentatives → `500` (cas extrême).
-- Décision et justification : placement complet des flottes au `POST` (aligné swagger et spec cours) ; `GameDto` minimal sans grilles (règle de visibilité) ; validation FluentValidation côté API, pas dans le domaine ; `InMemoryGameRepository` en singleton suffisant pour le TP.
-- Scénario ou commande de vérification :
+- **Outil / modèle** : Cursor (Composer)
+- **Contexte** : TP Bataille Navale ASP.NET Core (.NET 10), environnement Docker-only. Première route métier à livrer, conforme au contrat [`swagger.yaml`](swagger.yaml). Remplacement du template `weatherforecast` de l'API.
+- **Prompt réellement utilisé** : Demande d'exécution du plan d'implémentation [`docs/plans/post_api_games_fdd0a934.plan.md`](docs/plans/post_api_games_fdd0a934.plan.md) — mise en place de `POST /api/games` avec domaine minimal (`BattleShip.Models`), placement aléatoire des flottes, validation FluentValidation, persistance InMemory, tests xUnit et documentation associée (ADR 0003, `api.http`, README, revue IA 1/3).
+- **Réponse et hypothèses résumées** : Architecture retenue : Endpoint → Validator → GameEngine → Repository → GameMapper. Les deux flottes sont placées aléatoirement à la création. Le `GameDto` exclut toute position de navire. Corps absent ou `{}` : valeurs par défaut (`boardSize` 10, `difficulty` Normal). Sérialisation JSON des énumérations en PascalCase.
+- **Décision et justification** : Placement complet des flottes dès le `POST` (conformité swagger et cahier des charges). `GameDto` minimal sans grilles (règle de visibilité). Validation FluentValidation en couche API. `InMemoryGameRepository` en singleton, suffisant pour le périmètre du TP.
+- **Scénario ou commande de vérification** :
   ```bash
   ./scripts/dotnet.sh test --filter "FullyQualifiedName~CreateGame"
   docker compose up --build -d api
@@ -21,10 +19,32 @@
     -d '{"boardSize":4}'
   curl -s http://localhost:8080/openapi/v1.json | grep -F '"/api/games"'
   ```
-- Résultat attendu, puis résultat observé :
-  - Tests : 13/13 passés (`CreateGameRequestValidatorTests`, `GameEnginePlacementTests`, `CreateGameEndpointTests`).
-  - `POST` valide : `201 Created`, header `Location: /api/games/{id}`, corps `GameDto` avec `status: PlayerTurn`, `shotCount: 0`, sans positions de navires.
-  - `POST {"boardSize":4}` : `400 Bad Request`, `application/problem+json`, erreur sur `BoardSize`.
-  - OpenAPI : route `POST /api/games` présente dans `/openapi/v1.json`.
-- Erreur que ce contrôle pourrait détecter : validateur non enregistré en DI (400 absent → 500 ou 201 avec données invalides) ; flottes non placées ou chevauchement ; fuite de positions adverses dans le `GameDto` ; enums non sérialisés en chaîne (échec binding ou désérialisation).
-- Preuves reproductibles et limites : code dans `BattleShip.API/Endpoints/GameEndpoints.cs`, `BattleShip.API/Services/GameEngine.cs`, `BattleShip.API/Validation/CreateGameRequestValidator.cs` ; ADR [`docs/adr/0003-contrat-api.md`](docs/adr/0003-contrat-api.md) ; essais manuels [`api.http`](api.http). Commit de cette implémentation non encore créé au moment de la rédaction (dernier commit connu : `3a857af` — ajout `swagger.yaml`). Limite : persistance en mémoire (partie perdue au redémarrage du conteneur) ; placement aléatoire non déterministe en production (seed fixe uniquement dans les tests).
+- **Résultat attendu, puis résultat observé** :
+  - Attendu : 13 tests passants ; `201 Created` avec `Location` et `GameDto` ; `400` sur entrée invalide.
+  - Observé : 13/13 tests (`CreateGameRequestValidatorTests`, `GameEnginePlacementTests`, `CreateGameEndpointTests`) ; `POST` valide → `201`, `status: PlayerTurn`, `shotCount: 0` ; `POST {"boardSize":4}` → `400`, `application/problem+json` ; route présente dans `/openapi/v1.json`.
+- **Erreur que ce contrôle pourrait détecter** : Validateur absent du conteneur DI ; flottes non placées ou en chevauchement ; fuite de positions adverses dans le `GameDto` ; échec de sérialisation des énumérations.
+- **Preuves reproductibles et limites** : [`BattleShip.API/Endpoints/GameEndpoints.cs`](BattleShip.API/Endpoints/GameEndpoints.cs), [`BattleShip.API/Services/GameEngine.cs`](BattleShip.API/Services/GameEngine.cs), [`BattleShip.API/Validation/CreateGameRequestValidator.cs`](BattleShip.API/Validation/CreateGameRequestValidator.cs), [`docs/adr/0003-contrat-api.md`](docs/adr/0003-contrat-api.md), [`api.http`](api.http). *Limite* : persistance volatile (redémarrage du conteneur) ; placement non déterministe hors tests.
+
+---
+
+## Entrée 2 — 2026-03-15 : GET /api/games/{id}
+
+- **Outil / modèle** : Cursor (Composer)
+- **Contexte** : Deuxième route REST du projet. Réutilisation de `IGameRepository`, `GameMapper` et `GameDto` mis en place avec le `POST`.
+- **Prompt réellement utilisé** : Demande d'exécution du plan d'implémentation [`docs/plans/get_api_games_id_3550a52c.plan.md`](docs/plans/get_api_games_id_3550a52c.plan.md) — mise en place de `GET /api/games/{id}` : lecture InMemory, réponses `200` / `404`, tests d'intégration et mise à jour de la documentation (ADR 0003, `api.http`, README, revue IA 2/3).
+- **Réponse et hypothèses résumées** : Lecture directe via `IGameRepository.GetByIdAsync` sans extension de `IGameEngine`. Mapping identique au `POST` via `GameMapper.ToDto`. Identifiant inconnu → `404 ProblemDetails` avec `detail: "Partie inconnue"`.
+- **Décision et justification** : Aucune règle métier sur un GET de consultation ; le repository et le mapper existants suffisent. Cohérence POST/GET assurée par un mapper unique.
+- **Scénario ou commande de vérification** :
+  ```bash
+  ./scripts/dotnet.sh test --filter "FullyQualifiedName~GetGame"
+  docker compose up --build -d api
+  ID=$(curl -s -X POST http://localhost:8080/api/games \
+    -H "Content-Type: application/json" -d '{}' | jq -r .id)
+  curl -i http://localhost:8080/api/games/$ID
+  curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
+  ```
+- **Résultat attendu, puis résultat observé** :
+  - Attendu : 2 tests passants ; `200` pour une partie existante ; `404` pour un identifiant inconnu.
+  - Observé : 2/2 tests (`GetGameEndpointTests`) ; `GET` après `POST` → `200`, `GameDto` cohérent ; `GET` sur UUID inconnu → `404`, `detail: "Partie inconnue"`.
+- **Erreur que ce contrôle pourrait détecter** : Repository non consulté ; mapper divergent du `POST` ; code HTTP incorrect sur ressource absente.
+- **Preuves reproductibles et limites** : [`BattleShip.API/Endpoints/GameEndpoints.cs`](BattleShip.API/Endpoints/GameEndpoints.cs), [`BattleShip.Tests/Api/GetGameEndpointTests.cs`](BattleShip.Tests/Api/GetGameEndpointTests.cs), [`api.http`](api.http). *Limite* : UUID mal formé géré par le framework (`400`, hors périmètre swagger).

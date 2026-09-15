@@ -18,6 +18,11 @@ public static class GameEndpoints
             .Produces<GameDto>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
 
+        group.MapGet("/{id:guid}", GetGameAsync)
+            .WithName("GetGame")
+            .Produces<GameDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         return group;
     }
 
@@ -45,5 +50,21 @@ public static class GameEndpoints
                 detail: ex.Message,
                 statusCode: StatusCodes.Status500InternalServerError);
         }
+    }
+
+    private static async Task<IResult> GetGameAsync(
+        Guid id,
+        IGameRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var game = await repository.GetByIdAsync(id, cancellationToken);
+        if (game is null)
+        {
+            return TypedResults.Problem(
+                detail: "Partie inconnue",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        return TypedResults.Ok(GameMapper.ToDto(game));
     }
 }

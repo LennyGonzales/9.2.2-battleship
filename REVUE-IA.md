@@ -33,3 +33,32 @@ Trois revues argumentées minimum. Aucune erreur n'est exigée ; chaque conclusi
   - Commit de l'implémentation : non encore créé au moment de la rédaction (dernier commit connu : `3a857af` — `swagger.yaml` uniquement).
 - Après correction éventuelle : résultat avant / après : aucune correction nécessaire — le comportement observé correspond au résultat attendu dès la première implémentation.
 - Limites et points non vérifiés : seul `boardSize: 4` a été testé manuellement via curl ; `boardSize: 21` et `difficulty` invalide sont couverts par les tests unitaires du validateur mais pas re-testés manuellement sur l'API dockerisée ; le cas body totalement absent (sans `Content-Type`) n'a pas été vérifié séparément (couvert indirectement par `PostEmptyBody_Returns201WithGameDto`).
+
+---
+
+## Revue 2/3 : GET /api/games/{id} — partie inconnue
+
+- Proposition et référence dans le dépôt : `GetGameAsync` dans [`GameEndpoints.cs`](BattleShip.API/Endpoints/GameEndpoints.cs) — consultation de `IGameRepository.GetByIdAsync`, retour `404 ProblemDetails` si `null`.
+- Hypothèse à vérifier : un identifiant de partie inconnu renvoie `404 Not Found` avec un corps `ProblemDetails`, jamais `500` ni `200` avec un corps vide.
+- Scénario, données ou commande :
+  ```bash
+  curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
+  ```
+  Test automatisé : `BattleShip.Tests/Api/GetGameEndpointTests.GetUnknownGame_Returns404`
+- Résultat attendu avant exécution :
+  - HTTP `404 Not Found`
+  - `Content-Type: application/problem+json`
+  - Champ `detail` contenant « Partie inconnue »
+- Erreur que ce contrôle pourrait détecter : repository ignoré ; exception non gérée sur id absent (500) ; mauvais code HTTP (200 ou 204) ; message d'erreur absent ou générique.
+- Résultat réellement observé :
+  - `HTTP/1.1 404 Not Found`
+  - `Content-Type: application/problem+json`
+  - Corps contenant `"detail":"Partie inconnue"`
+  - Test xUnit : passé (`GetUnknownGame_Returns404`).
+- Décision et justification : la proposition IA est validée — le contrat swagger est respecté ; on conserve la lecture directe via le repository sans passer par `IGameEngine`.
+- Preuves reproductibles et liens vers les commits :
+  - `./scripts/dotnet.sh test --filter "FullyQualifiedName~GetGame"`
+  - [`api.http`](api.http) — scénario « Lire une partie inconnue »
+  - Commit à renseigner après validation locale.
+- Après correction éventuelle : résultat avant / après : aucune correction nécessaire — comportement conforme dès la première implémentation.
+- Limites et points non vérifiés : UUID mal formé dans l'URL (comportement framework `400`, non documenté dans swagger) ; cas `200` après POST couvert par test d'intégration uniquement.
