@@ -1,0 +1,21 @@
+@api = http://localhost:8080
+
+### Creer une partie (defauts)
+POST {{api}}/api/games
+
+### Creer une partie (options)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "boardSize": 10,
+  "difficulty": "Normal"
+}
+
+### Creer une partie — validation echouee
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "boardSize": 4
+}

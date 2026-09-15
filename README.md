@@ -42,5 +42,28 @@ docker compose --profile tools run --rm sdk dotnet test
 
 ## Documentation
 
+- Contrat REST : [`swagger.yaml`](swagger.yaml)
+- Essais manuels : [`api.http`](api.http)
 - Décisions d'architecture : [`docs/adr/`](docs/adr/)
-- Échanges IA : [`PROMPTS.md`](PROMPTS.md) (à compléter)
+- Échanges IA : [`PROMPTS.md`](PROMPTS.md)
+- Revues IA : [`REVUE-IA.md`](REVUE-IA.md)
+
+## API — POST /api/games
+
+Endpoint implémenté : création d'une partie contre l'ordinateur (placement aléatoire des flottes).
+
+```bash
+# Partie avec options
+curl -i -X POST http://localhost:8080/api/games \
+  -H "Content-Type: application/json" \
+  -d '{"boardSize":10,"difficulty":"Normal"}'
+
+# Validation echouee (boardSize < 5)
+curl -i -X POST http://localhost:8080/api/games \
+  -H "Content-Type: application/json" \
+  -d '{"boardSize":4}'
+```
+
+Réponse attendue en succès : `201 Created`, header `Location: /api/games/{id}`, corps `GameDto` JSON (sans positions de navires).
+
+Les statistiques de partie passent par gRPC-Web (non implémenté à ce stade).

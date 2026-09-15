@@ -1,4 +1,17 @@
+using BattleShip.API.Endpoints;
+using BattleShip.API.Services;
+using BattleShip.API.Validation;
+using BattleShip.Models.Contracts;
+using BattleShip.Models.Services;
+using FluentValidation;
+using System.Text.Json.Serialization;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
@@ -13,6 +26,11 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
+builder.Services.AddScoped<IGameEngine, GameEngine>();
+builder.Services.AddScoped<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
+builder.Services.AddSingleton<Random>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -21,30 +39,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast(
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapGameEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
 
 public partial class Program;
