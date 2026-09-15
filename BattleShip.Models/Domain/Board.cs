@@ -20,6 +20,17 @@ public sealed class Board
 
     public CellState GetCell(int x, int y) => _cells[x, y];
 
+    public bool IsWithinBounds(int x, int y) =>
+        x >= 0 && y >= 0 && x < Size && y < Size;
+
+    public bool IsAlreadyTargeted(int x, int y)
+    {
+        var state = _cells[x, y];
+        return state is CellState.Miss or CellState.Hit or CellState.Sunk;
+    }
+
+    public bool AreAllShipsSunk() => _ships.Count > 0 && _ships.All(s => s.IsSunk);
+
     public bool CanPlaceShip(Ship ship, int x, int y, bool horizontal)
     {
         var cells = GetOccupiedCells(ship.Length, x, y, horizontal);
@@ -42,6 +53,41 @@ public sealed class Board
 
         _ships.Add(ship);
     }
+
+    public ShotResolution ResolveShot(int x, int y)
+    {
+        if (!IsWithinBounds(x, y))
+            throw new ArgumentOutOfRangeException(nameof(x), $"Coordonnees hors grille : ({x},{y}).");
+
+        if (IsAlreadyTargeted(x, y))
+            throw new InvalidOperationException($"La case ({x},{y}) a deja ete ciblee.");
+
+        if (_cells[x, y] == CellState.Empty)
+        {
+            _cells[x, y] = CellState.Miss;
+            return new ShotResolution(x, y, ShotOutcome.Miss, null);
+        }
+
+        var ship = FindShipAt(x, y)!;
+        _cells[x, y] = CellState.Hit;
+
+        if (IsShipFullyHit(ship))
+        {
+            foreach (var (cellX, cellY) in ship.Cells)
+                _cells[cellX, cellY] = CellState.Sunk;
+
+            ship.MarkSunk();
+            return new ShotResolution(x, y, ShotOutcome.Sunk, ship.Name);
+        }
+
+        return new ShotResolution(x, y, ShotOutcome.Hit, null);
+    }
+
+    private Ship? FindShipAt(int x, int y) =>
+        _ships.FirstOrDefault(s => s.Cells.Any(c => c.X == x && c.Y == y));
+
+    private bool IsShipFullyHit(Ship ship) =>
+        ship.Cells.All(c => _cells[c.X, c.Y] is CellState.Hit or CellState.Sunk);
 
     private List<(int X, int Y)>? GetOccupiedCells(int length, int x, int y, bool horizontal)
     {

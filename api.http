@@ -1,6 +1,6 @@
 @api = http://localhost:8080
 
-### Creer une partie (defauts)
+### Creer une partie (defauts PvE)
 POST {{api}}/api/games
 
 ### Creer une partie (options PvE)
@@ -21,8 +21,10 @@ Content-Type: application/json
   "boardSize": 10
 }
 
-### Rejoindre une partie PvP (remplacer l'id apres create PvP)
-@pvpGameId = 3fa85f64-5717-4562-b3fc-2c963f66afa6
+### Rejoindre une partie PvP
+@pvpGameId = eeff593a-3e61-455d-84f1-bbf9d551977b
+@player1Token = f4c1481554ab4021a2b079eb6816ee9e
+@player2Token = 519fa28e7fdf4bc0a48a4c4381e24191
 POST {{api}}/api/games/{{pvpGameId}}/join
 
 ### Creer une partie — validation echouee
@@ -33,9 +35,62 @@ Content-Type: application/json
   "boardSize": 4
 }
 
-### Lire une partie existante (remplacer l'id apres un POST)
-@gameId = 3fa85f64-5717-4562-b3fc-2c963f66afa6
-GET {{api}}/api/games/{{gameId}}
+### Lire une partie PvE (remplacer l'id apres POST /api/games solo)
+@pveGameId = fcd83791-dc1e-41f7-8fc3-bc11841dcf7f
+GET {{api}}/api/games/{{pveGameId}}
 
 ### Lire une partie inconnue
 GET {{api}}/api/games/00000000-0000-0000-0000-000000000000
+
+### PvE — tir joueur (pas de header, status PlayerTurn)
+POST {{api}}/api/games/{{pveGameId}}/shots
+Content-Type: application/json
+
+{
+  "x": 4,
+  "y": 7
+}
+
+### PvE — tir ordinateur (pas de header, body vide, status ComputerTurn)
+POST {{api}}/api/games/{{pveGameId}}/shots
+Content-Type: application/json
+
+{}
+
+### PvE — case deja jouee (409)
+POST {{api}}/api/games/{{pveGameId}}/shots
+Content-Type: application/json
+
+{
+  "x": 4,
+  "y": 7
+}
+
+### PvP — tir joueur 1 (header obligatoire, status Player1Turn)
+POST {{api}}/api/games/{{pvpGameId}}/shots
+Content-Type: application/json
+X-Player-Token: {{player1Token}}
+
+{
+  "x": 1,
+  "y": 1
+}
+
+### PvP — tir joueur 2 (header obligatoire, status Player2Turn)
+POST {{api}}/api/games/{{pvpGameId}}/shots
+Content-Type: application/json
+X-Player-Token: {{player2Token}}
+
+{
+  "x": 2,
+  "y": 3
+}
+
+### PvP — tir sans token (401)
+POST {{api}}/api/games/{{pvpGameId}}/shots
+Content-Type: application/json
+
+{
+  "x": 0,
+  "y": 0
+}

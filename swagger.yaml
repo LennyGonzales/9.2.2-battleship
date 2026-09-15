@@ -104,18 +104,24 @@ paths:
   /api/games/{id}/shots:
     parameters:
       - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/PlayerToken'
     post:
       tags: [Shots]
       summary: Jouer un coup
       description: |
-        Resout le tir du joueur sur la grille adverse, puis le tir de
-        l'ordinateur si la partie continue.
+        Resout un seul tir selon le tour courant.
 
-        Un coup refuse ne modifie pas la partie : rejouer une case deja ciblee
-        ou tirer apres la fin de partie renvoie 409 sans consommer de tour.
+        PvE : PlayerTurn exige x,y ; ComputerTurn declenche le tir de
+        l'ordinateur (body vide ou sans coordonnees). Le front enchaine
+        deux appels si la partie continue.
+
+        PvP : un tir par requete avec X-Player-Token.
+
+        Un coup refuse ne modifie pas la partie : rejouer une case deja ciblee,
+        mauvais tour ou tirer apres la fin de partie renvoie 409.
       operationId: fireShot
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -393,16 +399,19 @@ components:
 
     ShotRequest:
       type: object
-      description: Coordonnees du tir du joueur sur la grille adverse
-      required: [x, y]
+      description: |
+        Coordonnees du tir. Requises au tour humain (PlayerTurn, Player1Turn,
+        Player2Turn). Absentes au tour ordinateur (ComputerTurn).
       properties:
         x:
           type: integer
           minimum: 0
+          nullable: true
           description: Colonne ciblee, indexee a partir de 0
         y:
           type: integer
           minimum: 0
+          nullable: true
           description: Ligne ciblee, indexee a partir de 0
       example:
         x: 4
@@ -431,32 +440,23 @@ components:
 
     ShotResultDto:
       type: object
-      description: |
-        Resultat du tour complet : le tir du joueur, puis la reponse de
-        l'ordinateur lorsque la partie continue.
-      required: [playerShot, status]
+      description: Resultat d'un tir unique et statut de la partie apres resolution.
+      required: [shot, shooter, status]
       properties:
-        playerShot:
+        shot:
           $ref: '#/components/schemas/ShotOutcomeDto'
-        computerShot:
-          allOf:
-            - $ref: '#/components/schemas/ShotOutcomeDto'
-          nullable: true
-          description: Null si la partie s'est terminee sur le tir du joueur
+        shooter:
+          $ref: '#/components/schemas/Player'
         status:
           $ref: '#/components/schemas/GameStatus'
       example:
-        playerShot:
+        shot:
           x: 4
           y: 7
           outcome: Hit
           sunkShipName: null
-        computerShot:
-          x: 2
-          y: 3
-          outcome: Miss
-          sunkShipName: null
-        status: PlayerTurn
+        shooter: Player
+        status: ComputerTurn
 
     ProblemDetails:
       type: object

@@ -24,14 +24,15 @@ Option 2 retenue :
 - **PvP** : création → `Waiting` sans flottes, token joueur 1 ; `POST /join` place les 2 flottes, token joueur 2, `Status = Player1Turn`
 - Token retourné uniquement à la création (PvP) et au join ; **absent** de `GET /api/games/{id}`
 - Header `X-Player-Token` documenté pour les routes futures `shots` et `board/*` en PvP
-- Interfaces `IComputerOpponent` et `ITurnResolver` préparées pour `POST /shots`
+- `IComputerOpponent` pour le tir ordinateur sur `ComputerTurn`
+- `POST /shots` : un tir par requête ; le front PvE enchaîne joueur puis ordinateur
 
 ## Conséquences
 
 - `CreateGameRequest` accepte `mode` (défaut `VsComputer`) — rétrocompatible
 - `GameDto` expose `mode` ; statuts PvP `Player1Turn` / `Player2Turn` distincts de PvE
 - `difficulty` ignorée en validation si `mode = VsPlayer`
-- Prochaine étape : implémenter `POST /shots` avec `ComputerTurnResolver` (PvE) et `HumanTurnResolver` (PvP)
+- PvE et PvP partagent la même route `POST /shots` avec sémantique selon `status` courant
 
 ## Vérification
 

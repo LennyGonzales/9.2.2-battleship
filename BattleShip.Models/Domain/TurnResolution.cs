@@ -1,9 +1,6 @@
 namespace BattleShip.Models.Domain;
 
-public sealed record TurnResolution(
-    ShotResolution? ShooterShot,
-    ShotResolution? OpponentShot,
-    GameStatus Status);
+public sealed record ShotTurnResult(ShotResolution Shot, Participant Shooter, GameStatus Status);
 
 public sealed record ShotResolution(
     int X,
