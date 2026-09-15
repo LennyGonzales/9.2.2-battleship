@@ -5,6 +5,29 @@ services:
     volumes:
       - .:/src
       - nuget:/root/.nuget/packages
+    profiles: [tools]
+
+  api:
+    build:
+      context: .
+      dockerfile: BattleShip.API/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      Cors__AllowedOrigins__0: http://localhost:8081
+
+  app:
+    build:
+      context: .
+      dockerfile: BattleShip.App/Dockerfile
+      args:
+        ApiBaseUrl: http://localhost:8080/
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
 
 volumes:
   nuget:

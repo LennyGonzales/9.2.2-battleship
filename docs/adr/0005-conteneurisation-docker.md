@@ -28,7 +28,11 @@ Raisons :
 - Le README documente uniquement le workflow Docker
 - `docker compose run --rm sdk dotnet build|test` remplace les commandes locales
 - Risque iCloud Drive : les dossiers `obj/` et `bin/` doivent rester dans `.gitignore` et `.dockerignore`
-- Les runtimes API (étape 5) et App (étape 7) compléteront ce fichier
+- Services runtime ajoutés dans `docker-compose.yml` :
+  - `api` : image multi-étapes (`BattleShip.API/Dockerfile`), port 8080, HTTP
+  - `app` : Blazor WASM publié + nginx (`BattleShip.App/Dockerfile`), port 8081
+- CORS autorise `http://localhost:8081` (origine vue par le navigateur)
+- `ApiBaseUrl` injectée au build du front via argument Docker
 
 ## Vérification et réexamen
 
@@ -36,6 +40,9 @@ Raisons :
 docker compose run --rm sdk dotnet --version   # doit afficher 10.x
 docker compose run --rm sdk dotnet build
 docker compose run --rm sdk dotnet test
+docker compose up --build                      # front :8081, API :8080
+curl -f http://localhost:8080/openapi/v1.json
+curl -f -o /dev/null -w "%{http_code}" http://localhost:8081/
 ```
 
 Revoir cette décision si les bind-mounts sur iCloud provoquent des erreurs de build intermittentes (déplacer le dépôt hors iCloud).

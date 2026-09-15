@@ -7,9 +7,19 @@ Projet scolaire C# / ASP.NET Core (.NET 10).
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (ou Docker Engine + Docker Compose v2)
 - Aucun SDK .NET local requis
 
-## Commandes
+## Lancer l'application
 
-Toutes les commandes `dotnet` passent par le conteneur SDK :
+```bash
+docker compose up --build
+```
+
+| Service | URL |
+|---------|-----|
+| Front Blazor | http://localhost:8081 |
+| API | http://localhost:8080 |
+| OpenAPI (dev) | http://localhost:8080/openapi/v1.json |
+
+## Développement (build / test)
 
 ```bash
 # Raccourci
@@ -17,8 +27,8 @@ Toutes les commandes `dotnet` passent par le conteneur SDK :
 ./scripts/dotnet.sh test
 
 # Ou directement
-docker compose run --rm sdk dotnet build
-docker compose run --rm sdk dotnet test
+docker compose --profile tools run --rm sdk dotnet build
+docker compose --profile tools run --rm sdk dotnet test
 ```
 
 ## Structure
