@@ -28,7 +28,9 @@ Jeu de **bataille navale en solo contre l'ordinateur** : le joueur crée une par
 | P0 | Front Blazor (création partie, grilles, tir) | À faire |
 | P0 | gRPC-Web `GameStats` + validateur | À faire |
 | P1 | Stratégie de l'ordinateur selon `Difficulty` (au-delà du tir aléatoire) | Backlog |
-| P2 | Multijoueur, sauvegarde fichier/DB, stats avancées | Non retenu |
+| P1 | Fondation PvP (`GameMode`, join, tokens) | Fait |
+| P1 | Routes shots/boards PvE et PvP | À faire |
+| P2 | Sauvegarde fichier/DB, stats avancées | À faire |
 
 ### Organisation du code et contrats
 
@@ -71,9 +73,10 @@ CORS : origine `http://localhost:8081` autorisée vers l'API.
 | [0005](docs/adr/0005-conteneurisation-docker.md) | Environnement Docker-only | Accepté |
 | 0001 | Découpage couches Models / API / App | À rédiger |
 | 0002 | Stockage InMemory (alternatives : fichier, DB) | À rédiger |
+| [0006](docs/adr/0006-modes-de-jeu.md) | Modes PvE / PvP, tokens, join | Accepté |
 | 0004 | Opération gRPC `GameStats` | À rédiger |
 
-Décisions clés déjà actées : persistance InMemory en singleton ; validation FluentValidation côté API ; mode **joueur vs ordinateur uniquement** ; `GameDto` sans positions de navires.
+Décisions clés déjà actées : persistance InMemory en singleton ; validation FluentValidation côté API ; dual-mode **VsComputer** (défaut) et **VsPlayer** (ADR 0006) ; `GameDto` sans positions de navires.
 
 ### Vérifications réalisées et limites connues
 
@@ -92,7 +95,7 @@ Décisions clés déjà actées : persistance InMemory en singleton ; validation
 
 | Choix | Retenu | Écarté / reporté | Justification |
 |-------|--------|------------------|---------------|
-| Mode de jeu | Solo vs ordinateur | Multijoueur PvP | Socle cours + contrat swagger actuel ; PvP imposerait auth, tours asynchrones, refonte du modèle `Player`/`Computer`. |
+| Mode de jeu | VsComputer + VsPlayer (fondation) | Auth comptes utilisateurs | PvP via tokens par partie et header `X-Player-Token` ; pas de comptes persistants. |
 | Stockage | InMemory | Base de données | Suffisant pour le TP ; ADR 0002 documentera les alternatives. |
 | Contrat création | `GameDto` sans grilles | Grilles dans le POST | Règle de visibilité + routes `/board/*` dédiées. |
 | SDK | Docker uniquement | SDK local | Reproductibilité binôme (ADR 0005). |

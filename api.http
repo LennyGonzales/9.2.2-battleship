@@ -26,3 +26,16 @@ GET {{api}}/api/games/{{gameId}}
 
 ### Lire une partie inconnue
 GET {{api}}/api/games/00000000-0000-0000-0000-000000000000
+
+### Creer une partie PvP (salle d'attente)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "mode": "VsPlayer",
+  "boardSize": 10
+}
+
+### Rejoindre une partie PvP (remplacer l'id apres creation)
+@pvpGameId = 3fa85f64-5717-4562-b3fc-2c963f66afa6
+POST {{api}}/api/games/{{pvpGameId}}/join

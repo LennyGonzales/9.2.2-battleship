@@ -32,8 +32,10 @@ paths:
       tags: [Games]
       summary: Creer une partie
       description: |
-        Cree une partie contre l'ordinateur, place les deux flottes et retourne
-        l'etat initial. Les positions des navires ne sont jamais retournees.
+        Cree une partie. En mode VsComputer (defaut), place les deux flottes et
+        retourne l'etat initial. En mode VsPlayer, cree une salle d'attente sans
+        flotte et retourne un token pour le joueur 1. Les positions des navires
+        ne sont jamais retournees.
       operationId: createGame
       requestBody:
         required: false
@@ -53,9 +55,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GameDto'
+                oneOf:
+                  - $ref: '#/components/schemas/GameDto'
+                  - $ref: '#/components/schemas/GameCreatedDto'
         '400':
           $ref: '#/components/responses/ValidationProblem'
+
+  /api/games/{id}/join:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    post:
+      tags: [Games]
+      summary: Rejoindre une partie multijoueur
+      description: |
+        Rejoint une partie VsPlayer en attente, place les deux flottes et
+        retourne un token pour le joueur 2.
+      operationId: joinGame
+      responses:
+        '200':
+          description: Partie rejointe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinGameDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/games/{id}:
     parameters:
@@ -161,6 +187,16 @@ components:
         format: uuid
       example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
 
+    PlayerToken:
+      name: X-Player-Token
+      in: header
+      required: false
+      description: |
+        Token secret du joueur, retourne a la creation (VsPlayer) ou au join.
+        Requis pour les routes futures shots/boards en mode multijoueur.
+      schema:
+        type: string
+
   responses:
     ValidationProblem:
       description: Requete invalide (echec de validation FluentValidation)
@@ -194,9 +230,18 @@ components:
           description: Cote de la grille carree
         difficulty:
           $ref: '#/components/schemas/Difficulty'
+        mode:
+          $ref: '#/components/schemas/GameMode'
       example:
         boardSize: 10
         difficulty: Normal
+        mode: VsComputer
+
+    GameMode:
+      type: string
+      description: Mode de jeu
+      enum: [VsComputer, VsPlayer]
+      default: VsComputer
 
     Difficulty:
       type: string
@@ -208,19 +253,28 @@ components:
       type: string
       description: |
         Etat de la partie.
-        Waiting : partie creee, aucun coup joue.
-        PlayerTurn / ComputerTurn : partie en cours.
-        PlayerWon / ComputerWon : partie terminee, plus aucun coup accepte.
+        Waiting : partie PvP en attente du second joueur.
+        PlayerTurn / ComputerTurn : partie PvE en cours.
+        Player1Turn / Player2Turn : partie PvP en cours.
+        PlayerWon / ComputerWon : partie PvE terminee.
+        Player1Won / Player2Won : partie PvP terminee.
       enum:
         - Waiting
         - PlayerTurn
         - ComputerTurn
         - PlayerWon
         - ComputerWon
+        - Player1Turn
+        - Player2Turn
+        - Player1Won
+        - Player2Won
 
     Player:
       type: string
-      enum: [Player, Computer]
+      description: |
+        PvE : Player (humain) et Computer (ordinateur).
+        PvP : Player1 et Player2.
+      enum: [Player, Computer, Player1, Player2]
 
     ShotOutcome:
       type: string
@@ -248,11 +302,13 @@ components:
     GameDto:
       type: object
       description: Etat d'une partie visible par le joueur
-      required: [id, status, boardSize, shotCount]
+      required: [id, mode, status, boardSize, shotCount]
       properties:
         id:
           type: string
           format: uuid
+        mode:
+          $ref: '#/components/schemas/GameMode'
         status:
           $ref: '#/components/schemas/GameStatus'
         currentTurn:
@@ -271,11 +327,50 @@ components:
           format: date-time
       example:
         id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        mode: VsComputer
         status: PlayerTurn
         currentTurn: Player
         boardSize: 10
         shotCount: 0
         createdAt: '2026-03-15T09:30:00Z'
+
+    GameCreatedDto:
+      allOf:
+        - $ref: '#/components/schemas/GameDto'
+        - type: object
+          properties:
+            playerToken:
+              type: string
+              nullable: true
+              description: Token du joueur 1 en mode VsPlayer, null en VsComputer
+          example:
+            id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            mode: VsPlayer
+            status: Waiting
+            currentTurn: null
+            boardSize: 10
+            shotCount: 0
+            createdAt: '2026-03-15T09:30:00Z'
+            playerToken: a1b2c3d4e5f6
+
+    JoinGameDto:
+      allOf:
+        - $ref: '#/components/schemas/GameDto'
+        - type: object
+          required: [playerToken]
+          properties:
+            playerToken:
+              type: string
+              description: Token du joueur 2
+          example:
+            id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            mode: VsPlayer
+            status: Player1Turn
+            currentTurn: Player1
+            boardSize: 10
+            shotCount: 0
+            createdAt: '2026-03-15T09:30:00Z'
+            playerToken: f6e5d4c3b2a1
 
     CellDto:
       type: object

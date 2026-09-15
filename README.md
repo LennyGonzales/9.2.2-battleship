@@ -83,3 +83,19 @@ curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
 Réponse attendue en succès : `200 OK`, corps `GameDto` JSON. Partie introuvable : `404 Not Found`, `application/problem+json`.
 
 Les statistiques de partie passent par gRPC-Web (non implémenté à ce stade).
+
+## API — PvP (fondation)
+
+Création d'une salle d'attente puis join du second joueur :
+
+```bash
+# Joueur 1 : creer une partie multijoueur
+curl -i -X POST http://localhost:8080/api/games \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"VsPlayer","boardSize":10}'
+
+# Joueur 2 : rejoindre (remplacer ID)
+curl -i -X POST http://localhost:8080/api/games/$ID/join
+```
+
+Réponse create PvP : `201` + `GameCreatedDto` avec `playerToken`. Réponse join : `200` + `JoinGameDto` avec `playerToken` pour le joueur 2. Les routes `shots` et `board/*` utiliseront le header `X-Player-Token` (à implémenter).

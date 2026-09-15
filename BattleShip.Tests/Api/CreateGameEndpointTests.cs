@@ -38,6 +38,22 @@ public class CreateGameEndpointTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Equal(PlayerSide.Player, dto.CurrentTurn);
         Assert.Equal(GameOptions.DefaultBoardSize, dto.BoardSize);
         Assert.Equal(0, dto.ShotCount);
+        Assert.Equal(GameMode.VsComputer, dto.Mode);
+    }
+
+    [Fact]
+    public async Task PostVsPlayerMode_Returns201WithPlayerToken()
+    {
+        var response = await _client.PostAsJsonAsync("/api/games", new { mode = "VsPlayer", boardSize = 10 });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var dto = await response.Content.ReadFromJsonAsync<GameCreatedDto>(JsonOptions);
+        Assert.NotNull(dto);
+        Assert.Equal(GameMode.VsPlayer, dto.Mode);
+        Assert.Equal(GameStatus.Waiting, dto.Status);
+        Assert.Null(dto.CurrentTurn);
+        Assert.False(string.IsNullOrWhiteSpace(dto.PlayerToken));
     }
 
     [Fact]

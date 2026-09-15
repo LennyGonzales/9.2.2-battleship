@@ -10,24 +10,24 @@ public class GameEnginePlacementTests
     public async Task CreateGameAsync_PlacesFleetWithoutOverlap()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(42));
+        var engine = CreateEngine(repository, new Random(42));
 
-        var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
+        var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal, null));
 
-        AssertFleetIsValid(game.PlayerBoard);
-        AssertFleetIsValid(game.ComputerBoard);
+        AssertFleetIsValid(game.Player1Board!);
+        AssertFleetIsValid(game.Player2Board!);
     }
 
     [Fact]
     public async Task CreateGameAsync_PlayerAndComputerBoardsAreDistinct()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(123));
+        var engine = CreateEngine(repository, new Random(123));
 
         var game = await engine.CreateGameAsync(null);
 
-        var playerCells = GetShipCells(game.PlayerBoard);
-        var computerCells = GetShipCells(game.ComputerBoard);
+        var playerCells = GetShipCells(game.Player1Board!);
+        var computerCells = GetShipCells(game.Player2Board!);
 
         Assert.NotEqual(playerCells, computerCells);
     }
@@ -36,14 +36,17 @@ public class GameEnginePlacementTests
     public async Task CreateGameAsync_InitialStateIsPlayerTurn()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(7));
+        var engine = CreateEngine(repository, new Random(7));
 
         var game = await engine.CreateGameAsync(null);
 
         Assert.Equal(GameStatus.PlayerTurn, game.Status);
-        Assert.Equal(PlayerSide.Player, game.CurrentTurn);
+        Assert.Equal(Participant.Player1, game.ActiveParticipant);
         Assert.Equal(0, game.ShotCount);
     }
+
+    private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
+        new(repository, new FleetPlacer(random), new PlayerTokenService());
 
     private static void AssertFleetIsValid(Board board)
     {

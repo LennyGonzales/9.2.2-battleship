@@ -1,9 +1,7 @@
 namespace BattleShip.Models.Domain;
 
-public enum PlayerSide
+public enum Participant
 {
-    Player,
-    Computer,
     Player1,
     Player2
 }

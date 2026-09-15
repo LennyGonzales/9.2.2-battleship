@@ -1,29 +1,53 @@
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Models.Exceptions;
 using BattleShip.Models.Services;
 
 namespace BattleShip.API.Services;
 
-public sealed class GameEngine(IGameRepository repository, Random random) : IGameEngine
+public sealed class GameEngine(
+    IGameRepository repository,
+    FleetPlacer fleetPlacer,
+    PlayerTokenService tokenService) : IGameEngine
 {
     public async Task<Game> CreateGameAsync(CreateGameRequest? request, CancellationToken cancellationToken = default)
     {
         var boardSize = request?.BoardSize ?? GameOptions.DefaultBoardSize;
+        var mode = request?.Mode ?? GameMode.VsComputer;
         var difficulty = request?.Difficulty ?? Difficulty.Normal;
 
-        var playerBoard = new Board(boardSize);
-        var computerBoard = new Board(boardSize);
+        if (mode == GameMode.VsPlayer)
+        {
+            var waitingGame = new Game
+            {
+                Mode = GameMode.VsPlayer,
+                Status = GameStatus.Waiting,
+                ActiveParticipant = null,
+                BoardSize = boardSize,
+                Player1Token = tokenService.GenerateToken(),
+                ShotCount = 0,
+                Difficulty = difficulty
+            };
 
-        PlaceFleetRandomly(playerBoard);
-        PlaceFleetRandomly(computerBoard);
+            await repository.SaveAsync(waitingGame, cancellationToken);
+            return waitingGame;
+        }
+
+        var player1Board = new Board(boardSize);
+        var player2Board = new Board(boardSize);
+
+        fleetPlacer.PlaceFleetRandomly(player1Board);
+        fleetPlacer.PlaceFleetRandomly(player2Board);
 
         var game = new Game
         {
-            PlayerBoard = playerBoard,
-            ComputerBoard = computerBoard,
+            Mode = GameMode.VsComputer,
+            Player1Board = player1Board,
+            Player2Board = player2Board,
+            BoardSize = boardSize,
             Difficulty = difficulty,
             Status = GameStatus.PlayerTurn,
-            CurrentTurn = PlayerSide.Player,
+            ActiveParticipant = Participant.Player1,
             ShotCount = 0
         };
 
@@ -31,29 +55,33 @@ public sealed class GameEngine(IGameRepository repository, Random random) : IGam
         return game;
     }
 
-    private void PlaceFleetRandomly(Board board)
+    public async Task<Game> JoinGameAsync(Guid gameId, CancellationToken cancellationToken = default)
     {
-        foreach (var (name, length) in GameOptions.DefaultFleet)
-        {
-            var ship = new Ship { Name = name, Length = length };
-            var placed = false;
+        var game = await repository.GetByIdAsync(gameId, cancellationToken)
+            ?? throw new GameNotFoundException();
 
-            for (var attempt = 0; attempt < GameOptions.MaxPlacementAttemptsPerShip; attempt++)
-            {
-                var x = random.Next(board.Size);
-                var y = random.Next(board.Size);
-                var horizontal = random.Next(2) == 0;
+        if (game.Mode != GameMode.VsPlayer)
+            throw new GameConflictException("Cette partie n'accepte pas de second joueur.");
 
-                if (!board.CanPlaceShip(ship, x, y, horizontal))
-                    continue;
+        if (game.Status != GameStatus.Waiting)
+            throw new GameConflictException("La partie n'est pas en attente d'un second joueur.");
 
-                board.PlaceShip(ship, x, y, horizontal);
-                placed = true;
-                break;
-            }
+        if (game.Player2Token is not null)
+            throw new GameConflictException("La partie est deja complete.");
 
-            if (!placed)
-                throw new InvalidOperationException($"Impossible de placer la flotte sur une grille {board.Size}x{board.Size}.");
-        }
+        var player1Board = new Board(game.BoardSize);
+        var player2Board = new Board(game.BoardSize);
+
+        fleetPlacer.PlaceFleetRandomly(player1Board);
+        fleetPlacer.PlaceFleetRandomly(player2Board);
+
+        game.Player1Board = player1Board;
+        game.Player2Board = player2Board;
+        game.Player2Token = tokenService.GenerateToken();
+        game.Status = GameStatus.Player1Turn;
+        game.ActiveParticipant = Participant.Player1;
+
+        await repository.SaveAsync(game, cancellationToken);
+        return game;
     }
 }
