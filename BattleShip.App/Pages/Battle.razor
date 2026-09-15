@@ -7,7 +7,9 @@
 
 @if (Session.Game is null)
 {
-    <p class="hud-label">Chargement de la partie…</p>
+    <AlertBanner Message="@Session.AlertMessage" />
+    <p class="hud-label">@(Session.IsBusy ? "Chargement de la partie…" : "Impossible de charger cette partie.")</p>
+    <a class="btn-brass" href="/">Retour au briefing</a>
 }
 else
 {
