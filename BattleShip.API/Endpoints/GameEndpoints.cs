@@ -5,6 +5,7 @@ using BattleShip.Models.Domain;
 using BattleShip.Models.Exceptions;
 using BattleShip.Models.Services;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BattleShip.API.Endpoints;
 
@@ -29,6 +30,20 @@ public static class GameEndpoints
         group.MapPost("/{id:guid}/join", JoinGameAsync)
             .WithName("JoinGame")
             .Produces<JoinGameDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/{id:guid}/board/player", GetPlayerBoardAsync)
+            .WithName("GetPlayerBoard")
+            .WithTags("Boards")
+            .Produces<BoardDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        group.MapGet("/{id:guid}/board/opponent", GetOpponentBoardAsync)
+            .WithName("GetOpponentBoard")
+            .WithTags("Boards")
+            .Produces<BoardDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -107,4 +122,56 @@ public static class GameEndpoints
                 statusCode: StatusCodes.Status409Conflict);
         }
     }
+
+    private static async Task<IResult> GetPlayerBoardAsync(
+        Guid id,
+        [FromHeader(Name = PlayerTokenHeaders.HeaderName)] string? playerToken,
+        IGameRepository repository,
+        ParticipantResolver participantResolver,
+        CancellationToken cancellationToken)
+    {
+        var game = await repository.GetByIdAsync(id, cancellationToken);
+        if (game is null)
+            return GameNotFoundProblem();
+
+        if (game.Player1Board is null || game.Player2Board is null)
+            return GameNotStartedProblem();
+
+        var participant = participantResolver.Resolve(game, playerToken);
+        if (participant is null)
+            return GameNotFoundProblem();
+
+        var board = game.GetBoard(participant.Value);
+        return TypedResults.Ok(GameMapper.ToBoardDto(board, BoardOwner.Player));
+    }
+
+    private static async Task<IResult> GetOpponentBoardAsync(
+        Guid id,
+        [FromHeader(Name = PlayerTokenHeaders.HeaderName)] string? playerToken,
+        IGameRepository repository,
+        ParticipantResolver participantResolver,
+        CancellationToken cancellationToken)
+    {
+        var game = await repository.GetByIdAsync(id, cancellationToken);
+        if (game is null)
+            return GameNotFoundProblem();
+
+        if (game.Player1Board is null || game.Player2Board is null)
+            return GameNotStartedProblem();
+
+        var participant = participantResolver.Resolve(game, playerToken);
+        if (participant is null)
+            return GameNotFoundProblem();
+
+        var board = game.GetOpponentBoard(participant.Value);
+        return TypedResults.Ok(GameMapper.ToBoardDto(board, BoardOwner.Opponent));
+    }
+
+    private static IResult GameNotFoundProblem() =>
+        TypedResults.Problem(detail: "Partie inconnue", statusCode: StatusCodes.Status404NotFound);
+
+    private static IResult GameNotStartedProblem() =>
+        TypedResults.Problem(
+            detail: "La partie n'a pas encore commence.",
+            statusCode: StatusCodes.Status409Conflict);
 }
