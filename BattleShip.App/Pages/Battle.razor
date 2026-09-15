@@ -11,6 +11,25 @@
     <p class="hud-label">@(Session.IsBusy ? "Chargement de la partie…" : "Impossible de charger cette partie.")</p>
     <a class="btn-brass" href="/">Retour au briefing</a>
 }
+else if (Session.AwaitingOpponent)
+{
+    <section class="radar-panel battle__waiting">
+        <h1>En attente d'un adversaire</h1>
+        <AlertBanner Message="@Session.AlertMessage" />
+        @if (Session.CanJoin)
+        {
+            <p class="hud-label">Cette partie multijoueur attend un second capitaine. Rejoignez-la pour deployer votre flotte.</p>
+            <button type="button" class="btn-brass" disabled="@Session.IsBusy" @onclick="JoinAsync">
+                @(Session.IsBusy ? "Ralliement en cours..." : "Rejoindre la partie")
+            </button>
+        }
+        else
+        {
+            <p class="hud-label">Partagez ce lien avec votre adversaire :</p>
+            <p class="battle__share-link">@Navigation.Uri</p>
+        }
+    </section>
+}
 else
 {
     <StatusConsole Game="Session.Game" />
@@ -25,7 +44,7 @@ else
         @if (Session.OpponentBoard is not null)
         {
             <RadarGrid Board="Session.OpponentBoard"
-                       Interactive="CanFire"
+                       Interactive="Session.CanFire"
                        Title="EAUX ENNEMIES"
                        OnCellClick="HandleFireAsync" />
         }
@@ -33,15 +52,13 @@ else
 
     <ShotLog History="Session.History" />
 
-    @if (Session.Game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon)
+    @if (IsGameOver)
     {
         <div class="battle__overlay">
             <div class="radar-panel battle__overlay-panel">
-                <h2>@(Session.Game.Status == GameStatus.PlayerWon ? "VICTOIRE" : "DEFAITE")</h2>
+                <h2>@(IWon ? "VICTOIRE" : "DEFAITE")</h2>
                 <p class="hud-label">
-                    @(Session.Game.Status == GameStatus.PlayerWon
-                        ? "La flotte ennemie a ete coulee."
-                        : "Votre flotte a ete coulee.")
+                    @(IWon ? "La flotte ennemie a ete coulee." : "Votre flotte a ete coulee.")
                 </p>
                 <button type="button" class="btn-brass" @onclick="@(() => Navigation.NavigateTo("/"))">
                     Nouveau deploiement
@@ -54,7 +71,17 @@ else
 @code {
     [Parameter] public Guid GameId { get; set; }
 
-    private bool CanFire => !Session.IsBusy && Session.Game?.Status == GameStatus.PlayerTurn;
+    private bool IsGameOver => Session.Game?.Status is
+        GameStatus.PlayerWon or GameStatus.ComputerWon or GameStatus.Player1Won or GameStatus.Player2Won;
+
+    private bool IWon => Session.Game?.Status switch
+    {
+        GameStatus.PlayerWon => Session.MySide == PlayerSide.Player,
+        GameStatus.ComputerWon => Session.MySide == PlayerSide.Computer,
+        GameStatus.Player1Won => Session.MySide == PlayerSide.Player1,
+        GameStatus.Player2Won => Session.MySide == PlayerSide.Player2,
+        _ => false,
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,6 +90,7 @@ else
         {
             await Session.LoadGameAsync(GameId);
         }
+        Session.StartPolling();
     }
 
     private async Task HandleFireAsync((int X, int Y) target)
@@ -70,8 +98,15 @@ else
         await Session.FireShotAsync(target.X, target.Y);
     }
 
+    private async Task JoinAsync()
+    {
+        await Session.JoinGameAsync(GameId);
+        Session.StartPolling();
+    }
+
     public void Dispose()
     {
         Session.Changed -= StateHasChanged;
+        Session.StopPolling();
     }
 }

@@ -12,11 +12,19 @@ public sealed class HttpGameApiClient(HttpClient http) : IGameApiClient
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public async Task<GameDto> CreateGameAsync(CreateGameRequest request, CancellationToken ct = default)
+    public async Task<GameCreatedDto> CreateGameAsync(CreateGameRequest request, CancellationToken ct = default)
     {
         using var response = await http.PostAsJsonAsync("api/games", request, JsonOptions, ct);
         await EnsureSuccessAsync(response, ct);
-        return (await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions, ct))!;
+        return (await response.Content.ReadFromJsonAsync<GameCreatedDto>(JsonOptions, ct))!;
+    }
+
+    public async Task<JoinGameDto> JoinGameAsync(Guid id, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/games/{id}/join");
+        using var response = await http.SendAsync(request, ct);
+        await EnsureSuccessAsync(response, ct);
+        return (await response.Content.ReadFromJsonAsync<JoinGameDto>(JsonOptions, ct))!;
     }
 
     public async Task<GameDto> GetGameAsync(Guid id, CancellationToken ct = default)
@@ -26,25 +34,40 @@ public sealed class HttpGameApiClient(HttpClient http) : IGameApiClient
         return (await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions, ct))!;
     }
 
-    public async Task<BoardDto> GetPlayerBoardAsync(Guid id, CancellationToken ct = default)
+    public async Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
-        using var response = await http.GetAsync($"api/games/{id}/board/player", ct);
+        using var request = CreateRequest(HttpMethod.Get, $"api/games/{id}/board/player", playerToken);
+        using var response = await http.SendAsync(request, ct);
         await EnsureSuccessAsync(response, ct);
         return (await response.Content.ReadFromJsonAsync<BoardDto>(JsonOptions, ct))!;
     }
 
-    public async Task<BoardDto> GetOpponentBoardAsync(Guid id, CancellationToken ct = default)
+    public async Task<BoardDto> GetOpponentBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
-        using var response = await http.GetAsync($"api/games/{id}/board/opponent", ct);
+        using var request = CreateRequest(HttpMethod.Get, $"api/games/{id}/board/opponent", playerToken);
+        using var response = await http.SendAsync(request, ct);
         await EnsureSuccessAsync(response, ct);
         return (await response.Content.ReadFromJsonAsync<BoardDto>(JsonOptions, ct))!;
     }
 
-    public async Task<ShotResultDto> FireShotAsync(Guid id, ShotRequest shot, CancellationToken ct = default)
+    public async Task<ShotResultDto> FireShotAsync(
+        Guid id, ShotRequest shot, string? playerToken, CancellationToken ct = default)
     {
-        using var response = await http.PostAsJsonAsync($"api/games/{id}/shots", shot, JsonOptions, ct);
+        using var request = CreateRequest(HttpMethod.Post, $"api/games/{id}/shots", playerToken);
+        request.Content = JsonContent.Create(shot, options: JsonOptions);
+        using var response = await http.SendAsync(request, ct);
         await EnsureSuccessAsync(response, ct);
         return (await response.Content.ReadFromJsonAsync<ShotResultDto>(JsonOptions, ct))!;
+    }
+
+    private static HttpRequestMessage CreateRequest(HttpMethod method, string uri, string? playerToken)
+    {
+        var request = new HttpRequestMessage(method, uri);
+        if (!string.IsNullOrWhiteSpace(playerToken))
+        {
+            request.Headers.Add(PlayerTokenHeaders.HeaderName, playerToken);
+        }
+        return request;
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)

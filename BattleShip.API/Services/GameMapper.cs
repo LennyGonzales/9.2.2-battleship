@@ -55,6 +55,10 @@ public static class GameMapper
     {
         (BoardOwner.Opponent, CellState.Ship) => VisibleCellState.Unknown,
         (BoardOwner.Opponent, CellState.Empty) => VisibleCellState.Unknown,
+        (BoardOwner.Opponent, CellState.Miss) => VisibleCellState.Miss,
+        // Le contrat de la grille joueur (swagger.yaml) n'expose pas d'etat Miss :
+        // un tir adverse rate reste indiscernable d'une case jamais visee.
+        (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
         (_, CellState.Empty) => VisibleCellState.Empty,
         (_, CellState.Ship) => VisibleCellState.Ship,
         (_, CellState.Hit) => VisibleCellState.Hit,

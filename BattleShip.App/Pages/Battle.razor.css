@@ -1,3 +1,18 @@
+.battle__waiting {
+    max-width: 32rem;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.battle__share-link {
+    word-break: break-all;
+    padding: 0.75rem 1rem;
+    border: 1px dashed var(--br-radar, currentColor);
+    font-family: inherit;
+}
+
 .battle__grids {
     display: grid;
     grid-template-columns: 1fr;
