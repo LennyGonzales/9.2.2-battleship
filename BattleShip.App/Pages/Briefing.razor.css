@@ -1,0 +1,28 @@
+.briefing {
+    max-width: 32rem;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.briefing__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.briefing__field input[type="range"] {
+    accent-color: var(--br-radar);
+}
+
+.briefing__difficulty {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.btn-brass--deploy {
+    align-self: flex-start;
+    font-size: 1rem;
+    padding: 0.8rem 1.5rem;
+}

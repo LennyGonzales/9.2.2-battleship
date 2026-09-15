@@ -1,0 +1,55 @@
+@page "/"
+@inject GameSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>BattleShip — Briefing</PageTitle>
+
+<section class="radar-panel briefing">
+    <h1>Operation Battleship</h1>
+    <p class="hud-label">Etat-major — preparez le deploiement de la flotte</p>
+
+    <div class="briefing__field">
+        <label class="hud-label" for="board-size">Taille de la grille</label>
+        <input id="board-size" type="range" min="5" max="20" step="1" @bind="boardSize" @bind:event="oninput" />
+        <span class="hud-label">@boardSize x @boardSize</span>
+    </div>
+
+    <div class="briefing__field">
+        <span class="hud-label">Difficulte de l'adversaire</span>
+        <div class="briefing__difficulty">
+            @foreach (var option in DifficultyOptions)
+            {
+                <button type="button"
+                        class="btn-brass @(difficulty == option ? "btn-brass--active" : "")"
+                        @onclick="() => difficulty = option">
+                    @option
+                </button>
+            }
+        </div>
+    </div>
+
+    <AlertBanner Message="@Session.AlertMessage" />
+
+    <button type="button" class="btn-brass btn-brass--deploy" disabled="@Session.IsBusy" @onclick="DeployAsync">
+        @(Session.IsBusy ? "Deploiement en cours..." : "Deployer la flotte")
+    </button>
+</section>
+
+@code {
+    private static readonly Difficulty[] DifficultyOptions =
+    [
+        Difficulty.Easy, Difficulty.Normal, Difficulty.Hard,
+    ];
+
+    private int boardSize = 10;
+    private Difficulty difficulty = Difficulty.Normal;
+
+    private async Task DeployAsync()
+    {
+        await Session.StartGameAsync(boardSize, difficulty);
+        if (Session.Game is not null)
+        {
+            Navigation.NavigateTo($"/battle/{Session.Game.Id}");
+        }
+    }
+}
