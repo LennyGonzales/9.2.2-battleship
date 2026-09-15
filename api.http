@@ -1,0 +1,28 @@
+@api = http://localhost:8080
+
+### Creer une partie (defauts)
+POST {{api}}/api/games
+
+### Creer une partie (options)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "boardSize": 10,
+  "difficulty": "Normal"
+}
+
+### Creer une partie — validation echouee
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "boardSize": 4
+}
+
+### Lire une partie existante (remplacer l'id apres un POST)
+@gameId = 3fa85f64-5717-4562-b3fc-2c963f66afa6
+GET {{api}}/api/games/{{gameId}}
+
+### Lire une partie inconnue
+GET {{api}}/api/games/00000000-0000-0000-0000-000000000000
