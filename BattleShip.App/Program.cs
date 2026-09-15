@@ -22,5 +22,4 @@ else
 }
 
 builder.Services.AddScoped<GameSession>();
-
 await builder.Build().RunAsync();
