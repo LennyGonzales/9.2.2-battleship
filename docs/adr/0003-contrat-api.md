@@ -23,6 +23,7 @@ Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `Gam
 - `GET /api/games/{id}` retourne `200` + `GameDto` ou `404` ProblemDetails (`detail: "Partie inconnue"`)
 - Erreurs de validation → `400` avec `ValidationProblemDetails` (FluentValidation)
 - Placement aléatoire des flottes joueur et ordinateur à la création (moteur `GameEngine`)
+- `POST /api/games/{id}/shots` : **un tir par requête** ; PvE alterne `PlayerTurn` (body `{x,y}`) et `ComputerTurn` (body vide) ; PvP exige `X-Player-Token` ; réponse `ShotResultDto` (`shot`, `shooter`, `status`) ; `409` si coup refusé sans mutation
 
 ## Conséquences
 
@@ -36,6 +37,7 @@ Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `Gam
 ```bash
 ./scripts/dotnet.sh test --filter "FullyQualifiedName~CreateGame"
 ./scripts/dotnet.sh test --filter "FullyQualifiedName~GetGame"
+./scripts/dotnet.sh test --filter "FullyQualifiedName~Shot"
 docker compose up --build -d api
 curl -i -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{"boardSize":10,"difficulty":"Normal"}'
 curl -i -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{"boardSize":4}'

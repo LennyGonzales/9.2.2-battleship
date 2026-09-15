@@ -15,3 +15,9 @@ public sealed class InvalidPlayerTokenException : Exception
 {
     public InvalidPlayerTokenException() : base("Token joueur invalide") { }
 }
+
+public sealed class ShotOutOfBoundsException : Exception
+{
+    public ShotOutOfBoundsException(int x, int y)
+        : base($"Coordonnees hors grille : ({x},{y}).") { }
+}

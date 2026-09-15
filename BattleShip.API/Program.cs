@@ -28,10 +28,12 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 builder.Services.AddScoped<IGameEngine, GameEngine>();
+builder.Services.AddScoped<IComputerOpponent, RandomComputerOpponent>();
 builder.Services.AddScoped<FleetPlacer>();
 builder.Services.AddSingleton<PlayerTokenService>();
 builder.Services.AddSingleton<ParticipantResolver>();
 builder.Services.AddScoped<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
+builder.Services.AddScoped<IValidator<ShotRequest>, ShotRequestValidator>();
 builder.Services.AddSingleton<Random>();
 
 var app = builder.Build();
@@ -43,6 +45,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.MapGameEndpoints();
+app.MapShotEndpoints();
 
 app.Run();
 

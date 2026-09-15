@@ -66,5 +66,5 @@ public class GameEnginePvpTests
     }
 
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
-        new(repository, new FleetPlacer(random), new PlayerTokenService());
+        new(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
 }
