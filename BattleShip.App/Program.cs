@@ -21,4 +21,6 @@ else
     builder.Services.AddScoped<IGameApiClient, HttpGameApiClient>();
 }
 
+builder.Services.AddScoped<GameSession>();
+
 await builder.Build().RunAsync();
