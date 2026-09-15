@@ -1,0 +1,34 @@
+<div class="shot-log radar-panel">
+    <header class="hud-label">Journal des tirs</header>
+    <ol class="shot-log__list">
+        @foreach (var entry in History)
+        {
+            <li class="shot-log__entry">
+                <span class="shot-log__side">VOUS</span>
+                @FormatOutcome(entry.PlayerShot)
+                @if (entry.ComputerShot is { } computerShot)
+                {
+                    <br />
+                    <span class="shot-log__side shot-log__side--enemy">ENNEMI</span>
+                    @FormatOutcome(computerShot)
+                }
+            </li>
+        }
+    </ol>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<ShotResultDto> History { get; set; }
+
+    private static string FormatOutcome(ShotOutcomeDto outcome)
+    {
+        var coord = $"{(char)('A' + outcome.X)}{outcome.Y + 1}";
+        return outcome.Outcome switch
+        {
+            ShotOutcome.Miss => $"{coord} — manque",
+            ShotOutcome.Hit => $"{coord} — touche",
+            ShotOutcome.Sunk => $"{coord} — coule ({outcome.SunkShipName})",
+            _ => coord,
+        };
+    }
+}

@@ -1,11 +1,11 @@
-using BattleShip.Models.Domain;
-
 namespace BattleShip.Models.Contracts;
+
+public record CreateGameRequest(int? BoardSize, Difficulty? Difficulty);
 
 public record GameDto(
     Guid Id,
     GameStatus Status,
-    PlayerSide? CurrentTurn,
+    Player? CurrentTurn,
     int BoardSize,
     int ShotCount,
     DateTimeOffset CreatedAt);

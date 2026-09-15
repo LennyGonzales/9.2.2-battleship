@@ -1,0 +1,77 @@
+@page "/battle/{GameId:guid}"
+@implements IDisposable
+@inject GameSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>BattleShip — Battle</PageTitle>
+
+@if (Session.Game is null)
+{
+    <AlertBanner Message="@Session.AlertMessage" />
+    <p class="hud-label">@(Session.IsBusy ? "Chargement de la partie…" : "Impossible de charger cette partie.")</p>
+    <a class="btn-brass" href="/">Retour au briefing</a>
+}
+else
+{
+    <StatusConsole Game="Session.Game" />
+
+    <AlertBanner Message="@Session.AlertMessage" />
+
+    <div class="battle__grids">
+        @if (Session.PlayerBoard is not null)
+        {
+            <RadarGrid Board="Session.PlayerBoard" Interactive="false" Title="VOTRE FLOTTE" />
+        }
+        @if (Session.OpponentBoard is not null)
+        {
+            <RadarGrid Board="Session.OpponentBoard"
+                       Interactive="CanFire"
+                       Title="EAUX ENNEMIES"
+                       OnCellClick="HandleFireAsync" />
+        }
+    </div>
+
+    <ShotLog History="Session.History" />
+
+    @if (Session.Game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon)
+    {
+        <div class="battle__overlay">
+            <div class="radar-panel battle__overlay-panel">
+                <h2>@(Session.Game.Status == GameStatus.PlayerWon ? "VICTOIRE" : "DEFAITE")</h2>
+                <p class="hud-label">
+                    @(Session.Game.Status == GameStatus.PlayerWon
+                        ? "La flotte ennemie a ete coulee."
+                        : "Votre flotte a ete coulee.")
+                </p>
+                <button type="button" class="btn-brass" @onclick="@(() => Navigation.NavigateTo("/"))">
+                    Nouveau deploiement
+                </button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid GameId { get; set; }
+
+    private bool CanFire => !Session.IsBusy && Session.Game?.Status == GameStatus.PlayerTurn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += StateHasChanged;
+        if (Session.Game?.Id != GameId)
+        {
+            await Session.LoadGameAsync(GameId);
+        }
+    }
+
+    private async Task HandleFireAsync((int X, int Y) target)
+    {
+        await Session.FireShotAsync(target.X, target.Y);
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= StateHasChanged;
+    }
+}

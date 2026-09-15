@@ -1,5 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG ApiBaseUrl=http://localhost:8080/
+ARG UseMockApi=true
 WORKDIR /src
 
 COPY BattleShip.slnx ./
@@ -8,7 +9,7 @@ COPY BattleShip.Models/BattleShip.Models.csproj BattleShip.Models/
 RUN dotnet restore BattleShip.App/BattleShip.App.csproj
 
 COPY . .
-RUN printf '%s\n' "{\"ApiBaseUrl\":\"${ApiBaseUrl}\"}" > BattleShip.App/wwwroot/appsettings.json
+RUN printf '%s\n' "{\"ApiBaseUrl\":\"${ApiBaseUrl}\",\"UseMockApi\":${UseMockApi}}" > BattleShip.App/wwwroot/appsettings.json
 RUN dotnet publish BattleShip.App/BattleShip.App.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM nginx:alpine AS final

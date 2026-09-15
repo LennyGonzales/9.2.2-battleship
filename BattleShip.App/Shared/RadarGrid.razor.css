@@ -1,0 +1,131 @@
+.radar-grid-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.radar-grid-panel__title {
+    text-align: center;
+}
+
+.radar-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(var(--grid-size), 1fr);
+    gap: 2px;
+    aspect-ratio: 1;
+    background: #0a0b07;
+    border: 1px solid var(--br-olive);
+    padding: 4px;
+    overflow: hidden;
+}
+
+.radar-cell {
+    position: relative;
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 2px;
+    padding: 0;
+    cursor: pointer;
+    background: var(--br-panel);
+}
+
+.radar-cell:disabled {
+    cursor: default;
+}
+
+.radar-cell--unknown {
+    background: var(--br-panel);
+}
+
+.radar-cell--empty {
+    background: #0f1a12;
+}
+
+.radar-cell--ship {
+    background: var(--br-olive-light);
+}
+
+.radar-cell--ship::before {
+    content: "▲";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    color: var(--br-bg);
+}
+
+.radar-cell--miss {
+    background: #0f1a12;
+}
+
+.radar-cell--miss::before {
+    content: "•";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--br-text-dim);
+}
+
+.radar-cell--hit,
+.radar-cell--sunk {
+    background: var(--br-alert);
+}
+
+.radar-cell__ping {
+    position: absolute;
+    inset: 15%;
+    border-radius: 50%;
+    border: 2px solid var(--br-alert);
+}
+
+.radar-sweep {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: conic-gradient(from 0deg, var(--br-radar-dim), transparent 35%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .radar-sweep {
+        animation: radar-sweep 4s linear infinite;
+    }
+
+    .radar-cell__ping {
+        animation: sonar-ping 1.1s ease-out infinite;
+    }
+
+    @keyframes radar-sweep {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes sonar-ping {
+        from {
+            transform: scale(0.6);
+            opacity: 1;
+        }
+        to {
+            transform: scale(1.6);
+            opacity: 0;
+        }
+    }
+}
+
+.radar-scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(57, 255, 106, 0.05) 0px,
+        rgba(57, 255, 106, 0.05) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}

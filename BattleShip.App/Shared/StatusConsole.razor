@@ -1,0 +1,39 @@
+<div class="status-console radar-panel">
+    <div class="status-console__item">
+        <span class="hud-label">Statut</span>
+        <strong>@StatusLabel(Game.Status)</strong>
+    </div>
+    <div class="status-console__item">
+        <span class="hud-label">Tour</span>
+        <strong>
+            @(Game.CurrentTurn switch
+            {
+                Player.Player => "JOUEUR",
+                Player.Computer => "ORDINATEUR",
+                _ => "—",
+            })
+        </strong>
+    </div>
+    <div class="status-console__item">
+        <span class="hud-label">Grille</span>
+        <strong>@Game.BoardSize x @Game.BoardSize</strong>
+    </div>
+    <div class="status-console__item">
+        <span class="hud-label">Tirs joues</span>
+        <strong>@Game.ShotCount</strong>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required GameDto Game { get; set; }
+
+    private static string StatusLabel(GameStatus status) => status switch
+    {
+        GameStatus.Waiting => "EN ATTENTE",
+        GameStatus.PlayerTurn => "A VOUS DE JOUER",
+        GameStatus.ComputerTurn => "L'ADVERSAIRE VISE",
+        GameStatus.PlayerWon => "VICTOIRE",
+        GameStatus.ComputerWon => "DEFAITE",
+        _ => status.ToString(),
+    };
+}

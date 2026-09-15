@@ -1,0 +1,133 @@
+/* ===== Design tokens ===== */
+:root {
+    --br-bg: #12140f;
+    --br-bg-elevated: #181b12;
+    --br-panel: #1c1f16;
+    --br-olive: #3a4025;
+    --br-olive-light: #565f38;
+    --br-brass: #c9a24b;
+    --br-brass-dim: #8f7538;
+    --br-radar: #39ff6a;
+    --br-radar-dim: rgba(57, 255, 106, 0.25);
+    --br-alert: #d1453b;
+    --br-text: #e7e4d8;
+    --br-text-dim: #a9a693;
+    --font-display: "Black Ops One", "Arial Narrow", system-ui, sans-serif;
+    --font-hud: "Share Tech Mono", ui-monospace, "Courier New", monospace;
+}
+
+/* ===== Reset / base ===== */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--br-bg);
+    color: var(--br-text);
+    font-family: var(--font-hud);
+}
+
+h1, h2, h3, .hud-title {
+    font-family: var(--font-display);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--br-brass);
+    margin: 0 0 0.75rem 0;
+}
+
+a, .btn-link {
+    color: var(--br-radar);
+}
+
+/* ===== Shared primitives ===== */
+.hud-label {
+    font-family: var(--font-hud);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.8rem;
+    color: var(--br-text-dim);
+}
+
+.radar-panel {
+    background: var(--br-panel);
+    border: 1px solid var(--br-olive);
+    border-radius: 4px;
+    padding: 1.25rem;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    position: relative;
+}
+
+.radar-panel::before,
+.radar-panel::after {
+    content: "";
+    position: absolute;
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 2px solid var(--br-brass-dim);
+}
+
+.radar-panel::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.radar-panel::after {
+    bottom: -1px;
+    right: -1px;
+    border-left: none;
+    border-top: none;
+}
+
+.btn-brass {
+    font-family: var(--font-hud);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    color: var(--br-bg);
+    background: linear-gradient(180deg, var(--br-brass) 0%, var(--br-brass-dim) 100%);
+    border: 1px solid var(--br-brass-dim);
+    border-radius: 3px;
+    padding: 0.6rem 1.1rem;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+.btn-brass:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.btn-brass:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.btn-brass:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-brass--active {
+    outline: 2px solid var(--br-radar);
+    outline-offset: 2px;
+}
+
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(209, 69, 59, 0.15);
+    border: 1px solid var(--br-alert);
+    color: #ffb3ad;
+    border-radius: 3px;
+    padding: 0.6rem 0.9rem;
+    font-family: var(--font-hud);
+    font-size: 0.85rem;
+    margin: 0.75rem 0;
+}
+
+.alert-banner__icon {
+    font-size: 1rem;
+}
