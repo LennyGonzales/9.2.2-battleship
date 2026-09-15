@@ -45,6 +45,7 @@ docker compose --profile tools run --rm sdk dotnet test
 - Contrat REST : [`swagger.yaml`](swagger.yaml)
 - Essais manuels : [`api.http`](api.http)
 - Décisions d'architecture : [`docs/adr/`](docs/adr/)
+- Contexte projet : [`CONTEXTE-IA.md`](CONTEXTE-IA.md)
 - Échanges IA : [`PROMPTS.md`](PROMPTS.md)
 - Revues IA : [`REVUE-IA.md`](REVUE-IA.md)
 
