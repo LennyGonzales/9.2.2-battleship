@@ -82,4 +82,25 @@ curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
 
 Réponse attendue en succès : `200 OK`, corps `GameDto` JSON. Partie introuvable : `404 Not Found`, `application/problem+json`.
 
+## API — PvP (joueur vs joueur)
+
+Fondation dual-mode : création en `Waiting`, join place les flottes et retourne un token joueur 2.
+
+```bash
+# Creer une partie PvP
+CREATE=$(curl -s -X POST http://localhost:8080/api/games \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"VsPlayer","boardSize":10}')
+ID=$(echo "$CREATE" | jq -r .id)
+TOKEN_P1=$(echo "$CREATE" | jq -r .playerToken)
+
+# Second joueur rejoint
+curl -i -X POST http://localhost:8080/api/games/$ID/join
+
+# Lire l'etat (sans token dans la reponse)
+curl -i http://localhost:8080/api/games/$ID
+```
+
+Les routes `shots` et `board/*` utiliseront le header `X-Player-Token` en PvP (à implémenter).
+
 Les statistiques de partie passent par gRPC-Web (non implémenté à ce stade).

@@ -8,8 +8,9 @@
         <strong>
             @(Game.CurrentTurn switch
             {
-                Player.Player => "JOUEUR",
-                Player.Computer => "ORDINATEUR",
+                PlayerSide.Player or PlayerSide.Player1 => "JOUEUR",
+                PlayerSide.Computer => "ORDINATEUR",
+                PlayerSide.Player2 => "ADVERSAIRE",
                 _ => "—",
             })
         </strong>
@@ -32,8 +33,10 @@
         GameStatus.Waiting => "EN ATTENTE",
         GameStatus.PlayerTurn => "A VOUS DE JOUER",
         GameStatus.ComputerTurn => "L'ADVERSAIRE VISE",
-        GameStatus.PlayerWon => "VICTOIRE",
-        GameStatus.ComputerWon => "DEFAITE",
+        GameStatus.PlayerWon or GameStatus.Player1Won => "VICTOIRE",
+        GameStatus.ComputerWon or GameStatus.Player2Won => "DEFAITE",
+        GameStatus.Player1Turn => "TOUR JOUEUR 1",
+        GameStatus.Player2Turn => "TOUR JOUEUR 2",
         _ => status.ToString(),
     };
 }

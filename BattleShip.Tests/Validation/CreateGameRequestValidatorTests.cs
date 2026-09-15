@@ -42,4 +42,20 @@ public class CreateGameRequestValidatorTests
         var result = _validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Difficulty);
     }
+
+    [Fact]
+    public void InvalidMode_HasError()
+    {
+        var request = new CreateGameRequest(10, null, (GameMode)999);
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(x => x.Mode);
+    }
+
+    [Fact]
+    public void VsPlayerWithInvalidDifficulty_IsValid()
+    {
+        var request = new CreateGameRequest(10, (Difficulty)999, GameMode.VsPlayer);
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveValidationErrorFor(x => x.Difficulty);
+    }
 }

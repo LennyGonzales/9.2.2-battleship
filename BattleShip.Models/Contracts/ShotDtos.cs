@@ -1,3 +1,5 @@
+using BattleShip.Models.Domain;
+
 namespace BattleShip.Models.Contracts;
 
 public record ShotRequest(int X, int Y);

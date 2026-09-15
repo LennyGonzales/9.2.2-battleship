@@ -3,7 +3,7 @@
 ### Creer une partie (defauts)
 POST {{api}}/api/games
 
-### Creer une partie (options)
+### Creer une partie (options PvE)
 POST {{api}}/api/games
 Content-Type: application/json
 
@@ -11,6 +11,19 @@ Content-Type: application/json
   "boardSize": 10,
   "difficulty": "Normal"
 }
+
+### Creer une partie PvP (attente join)
+POST {{api}}/api/games
+Content-Type: application/json
+
+{
+  "mode": "VsPlayer",
+  "boardSize": 10
+}
+
+### Rejoindre une partie PvP (remplacer l'id apres create PvP)
+@pvpGameId = 3fa85f64-5717-4562-b3fc-2c963f66afa6
+POST {{api}}/api/games/{{pvpGameId}}/join
 
 ### Creer une partie — validation echouee
 POST {{api}}/api/games

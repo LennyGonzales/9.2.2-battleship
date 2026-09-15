@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using BattleShip.Models.Contracts;
+using BattleShip.Models.Domain;
 
 namespace BattleShip.App.Services;
 
@@ -255,8 +256,9 @@ public sealed class MockGameApiClient : IGameApiClient
 
     private static GameDto ToGameDto(MockGame game) => new(
         game.Id,
+        GameMode.VsComputer,
         game.Status,
-        game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon ? null : Player.Player,
+        game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon ? null : PlayerSide.Player,
         game.BoardSize,
         game.ShotCount,
         game.CreatedAt);

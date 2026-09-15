@@ -1,4 +1,5 @@
 using BattleShip.Models.Contracts;
+using BattleShip.Models.Domain;
 
 namespace BattleShip.App.Services;
 

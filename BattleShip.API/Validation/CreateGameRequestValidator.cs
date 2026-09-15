@@ -15,7 +15,12 @@ public sealed class CreateGameRequestValidator : AbstractValidator<CreateGameReq
 
         RuleFor(x => x.Difficulty)
             .IsInEnum()
-            .When(x => x.Difficulty.HasValue)
+            .When(x => x.Difficulty.HasValue && x.Mode != GameMode.VsPlayer)
             .WithMessage("La difficulte doit etre Easy, Normal ou Hard.");
+
+        RuleFor(x => x.Mode)
+            .IsInEnum()
+            .When(x => x.Mode.HasValue)
+            .WithMessage("Le mode doit etre VsComputer ou VsPlayer.");
     }
 }

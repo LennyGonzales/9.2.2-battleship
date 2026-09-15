@@ -6,5 +6,9 @@ public enum GameStatus
     PlayerTurn,
     ComputerTurn,
     PlayerWon,
-    ComputerWon
+    ComputerWon,
+    Player1Turn,
+    Player2Turn,
+    Player1Won,
+    Player2Won
 }

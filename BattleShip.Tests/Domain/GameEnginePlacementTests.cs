@@ -10,7 +10,8 @@ public class GameEnginePlacementTests
     public async Task CreateGameAsync_PlacesFleetWithoutOverlap()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(42));
+        var random = new Random(42);
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService());
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
 
@@ -22,7 +23,8 @@ public class GameEnginePlacementTests
     public async Task CreateGameAsync_PlayerAndComputerBoardsAreDistinct()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(123));
+        var random = new Random(123);
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService());
 
         var game = await engine.CreateGameAsync(null);
 
@@ -36,7 +38,8 @@ public class GameEnginePlacementTests
     public async Task CreateGameAsync_InitialStateIsPlayerTurn()
     {
         var repository = new InMemoryGameRepository();
-        var engine = new GameEngine(repository, new Random(7));
+        var random = new Random(7);
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService());
 
         var game = await engine.CreateGameAsync(null);
 
