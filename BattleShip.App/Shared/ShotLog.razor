@@ -4,14 +4,10 @@
         @foreach (var entry in History)
         {
             <li class="shot-log__entry">
-                <span class="shot-log__side">VOUS</span>
-                @FormatOutcome(entry.PlayerShot)
-                @if (entry.ComputerShot is { } computerShot)
-                {
-                    <br />
-                    <span class="shot-log__side shot-log__side--enemy">ENNEMI</span>
-                    @FormatOutcome(computerShot)
-                }
+                <span class="shot-log__side @(IsMine(entry.Shooter) ? "" : "shot-log__side--enemy")">
+                    @SideLabel(entry.Shooter)
+                </span>
+                @FormatOutcome(entry.Shot)
             </li>
         }
     </ol>
@@ -19,6 +15,18 @@
 
 @code {
     [Parameter, EditorRequired] public required IReadOnlyList<ShotResultDto> History { get; set; }
+
+    private static bool IsMine(PlayerSide shooter) =>
+        shooter is PlayerSide.Player or PlayerSide.Player1;
+
+    private static string SideLabel(PlayerSide shooter) => shooter switch
+    {
+        PlayerSide.Player => "VOUS",
+        PlayerSide.Computer => "ENNEMI",
+        PlayerSide.Player1 => "JOUEUR 1",
+        PlayerSide.Player2 => "JOUEUR 2",
+        _ => "—",
+    };
 
     private static string FormatOutcome(ShotOutcomeDto outcome)
     {

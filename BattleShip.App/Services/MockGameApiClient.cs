@@ -17,8 +17,13 @@ public sealed class MockGameApiClient : IGameApiClient
 
     private readonly ConcurrentDictionary<Guid, MockGame> _games = new();
 
-    public Task<GameDto> CreateGameAsync(CreateGameRequest request, CancellationToken ct = default)
+    public Task<GameCreatedDto> CreateGameAsync(CreateGameRequest request, CancellationToken ct = default)
     {
+        if (request.Mode == GameMode.VsPlayer)
+        {
+            throw Conflict("Le multijoueur necessite le vrai backend (UseMockApi=false).");
+        }
+
         var boardSize = Math.Clamp(request.BoardSize ?? 10, 5, 20);
         var difficulty = request.Difficulty ?? Difficulty.Normal;
         var rng = Random.Shared;
@@ -33,13 +38,16 @@ public sealed class MockGameApiClient : IGameApiClient
             CreatedAt = DateTimeOffset.UtcNow,
         };
         _games[game.Id] = game;
-        return Task.FromResult(ToGameDto(game));
+        return Task.FromResult(ToGameCreatedDto(game));
     }
+
+    public Task<JoinGameDto> JoinGameAsync(Guid id, CancellationToken ct = default) =>
+        throw Conflict("Le multijoueur necessite le vrai backend (UseMockApi=false).");
 
     public Task<GameDto> GetGameAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(ToGameDto(GetGameOrThrow(id)));
 
-    public Task<BoardDto> GetPlayerBoardAsync(Guid id, CancellationToken ct = default)
+    public Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
         var cells = new List<CellDto>();
@@ -62,7 +70,7 @@ public sealed class MockGameApiClient : IGameApiClient
         return Task.FromResult(new BoardDto(BoardOwner.Player, game.BoardSize, cells));
     }
 
-    public Task<BoardDto> GetOpponentBoardAsync(Guid id, CancellationToken ct = default)
+    public Task<BoardDto> GetOpponentBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
         var cells = new List<CellDto>();
@@ -90,7 +98,8 @@ public sealed class MockGameApiClient : IGameApiClient
         return Task.FromResult(new BoardDto(BoardOwner.Opponent, game.BoardSize, cells));
     }
 
-    public Task<ShotResultDto> FireShotAsync(Guid id, ShotRequest shot, CancellationToken ct = default)
+    public Task<ShotResultDto> FireShotAsync(
+        Guid id, ShotRequest shot, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
         if (game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon)
@@ -98,35 +107,57 @@ public sealed class MockGameApiClient : IGameApiClient
             throw Conflict("La partie est deja terminee.");
         }
 
+        var isComputerTurnCall = shot.X is null && shot.Y is null;
+
+        return Task.FromResult(isComputerTurnCall
+            ? FireComputerShot(game)
+            : FirePlayerShot(game, shot));
+    }
+
+    private static ShotResultDto FirePlayerShot(MockGame game, ShotRequest shot)
+    {
+        if (game.Status != GameStatus.PlayerTurn)
+        {
+            throw Conflict("Ce n'est pas votre tour.");
+        }
+
+        if (shot.X is null || shot.Y is null)
+        {
+            throw ValidationError("Coordonnees requises pour ce tour.");
+        }
+
         if (shot.X < 0 || shot.X >= game.BoardSize || shot.Y < 0 || shot.Y >= game.BoardSize)
         {
             throw ValidationError("La cible est hors de la grille.");
         }
 
-        var target = (X: shot.X, Y: shot.Y);
+        var target = (X: shot.X.Value, Y: shot.Y.Value);
         if (!game.PlayerShotsAtComputer.Add(target))
         {
             throw Conflict("Cette case a deja ete ciblee.");
         }
 
-        var playerShot = ResolveShot(game.ComputerFleet, target);
+        var outcome = ResolveShot(game.ComputerFleet, target);
         game.ShotCount++;
+        game.Status = AllSunk(game.ComputerFleet) ? GameStatus.PlayerWon : GameStatus.ComputerTurn;
 
-        ShotOutcomeDto? computerShot = null;
-        if (AllSunk(game.ComputerFleet))
+        return new ShotResultDto(outcome, PlayerSide.Player, game.Status);
+    }
+
+    private static ShotResultDto FireComputerShot(MockGame game)
+    {
+        if (game.Status != GameStatus.ComputerTurn)
         {
-            game.Status = GameStatus.PlayerWon;
-        }
-        else
-        {
-            var computerTarget = PickComputerTarget(game);
-            game.ComputerShotsAtPlayer.Add(computerTarget);
-            computerShot = ResolveShot(game.PlayerFleet, computerTarget);
-            UpdateHuntState(game, computerShot);
-            game.Status = AllSunk(game.PlayerFleet) ? GameStatus.ComputerWon : GameStatus.PlayerTurn;
+            throw Conflict("Ce n'est pas le tour de l'ordinateur.");
         }
 
-        return Task.FromResult(new ShotResultDto(playerShot, computerShot, game.Status));
+        var target = PickComputerTarget(game);
+        game.ComputerShotsAtPlayer.Add(target);
+        var outcome = ResolveShot(game.PlayerFleet, target);
+        UpdateHuntState(game, outcome);
+        game.Status = AllSunk(game.PlayerFleet) ? GameStatus.ComputerWon : GameStatus.PlayerTurn;
+
+        return new ShotResultDto(outcome, PlayerSide.Computer, game.Status);
     }
 
     private MockGame GetGameOrThrow(Guid id)
@@ -254,14 +285,31 @@ public sealed class MockGameApiClient : IGameApiClient
 
     private static bool AllSunk(IEnumerable<ShipInstance> fleet) => fleet.All(s => s.IsSunk);
 
+    private static PlayerSide? CurrentTurn(GameStatus status) => status switch
+    {
+        GameStatus.PlayerTurn => PlayerSide.Player,
+        GameStatus.ComputerTurn => PlayerSide.Computer,
+        _ => null,
+    };
+
     private static GameDto ToGameDto(MockGame game) => new(
         game.Id,
         GameMode.VsComputer,
         game.Status,
-        game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon ? null : PlayerSide.Player,
+        CurrentTurn(game.Status),
         game.BoardSize,
         game.ShotCount,
         game.CreatedAt);
+
+    private static GameCreatedDto ToGameCreatedDto(MockGame game) => new(
+        game.Id,
+        GameMode.VsComputer,
+        game.Status,
+        CurrentTurn(game.Status),
+        game.BoardSize,
+        game.ShotCount,
+        game.CreatedAt,
+        null);
 
     private static GameApiException NotFound(string detail) =>
         new(new ProblemDetailsDto("about:blank", "Not Found", 404, detail, null), 404);
