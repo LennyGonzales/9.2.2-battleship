@@ -1,0 +1,422 @@
+openapi: 3.0.3
+
+info:
+  title: BattleShip API
+  version: 1.0.0
+  description: |
+    Contrat HTTP entre le front Blazor WebAssembly (BattleShip.App) et l'API
+    ASP.NET Core (BattleShip.API).
+
+    Regle de visibilite : aucune reponse ne revele la position d'un navire
+    adverse qui n'a pas ete touche. La grille adverse n'expose que les cellules
+    deja decouvertes par le joueur.
+
+    Les statistiques de partie ne figurent pas ici : elles passent par gRPC-Web
+    (service GameStats, voir Protos/battleship.proto).
+
+servers:
+  - url: http://localhost:8080
+    description: API lancee via docker compose
+
+tags:
+  - name: Games
+    description: Cycle de vie d'une partie
+  - name: Boards
+    description: Lecture des grilles
+  - name: Shots
+    description: Coups joues
+
+paths:
+  /api/games:
+    post:
+      tags: [Games]
+      summary: Creer une partie
+      description: |
+        Cree une partie contre l'ordinateur, place les deux flottes et retourne
+        l'etat initial. Les positions des navires ne sont jamais retournees.
+      operationId: createGame
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+      responses:
+        '201':
+          description: Partie creee
+          headers:
+            Location:
+              description: URL de la partie creee
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDto'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+
+  /api/games/{id}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [Games]
+      summary: Lire l'etat d'une partie
+      description: Retourne l'etat courant visible par le joueur.
+      operationId: getGame
+      responses:
+        '200':
+          description: Etat de la partie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/games/{id}/shots:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    post:
+      tags: [Shots]
+      summary: Jouer un coup
+      description: |
+        Resout le tir du joueur sur la grille adverse, puis le tir de
+        l'ordinateur si la partie continue.
+
+        Un coup refuse ne modifie pas la partie : rejouer une case deja ciblee
+        ou tirer apres la fin de partie renvoie 409 sans consommer de tour.
+      operationId: fireShot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShotRequest'
+      responses:
+        '200':
+          description: Coup resolu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShotResultDto'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/games/{id}/board/player:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [Boards]
+      summary: Lire la grille du joueur
+      description: |
+        Grille du joueur, avec ses propres navires et les tirs de l'ordinateur.
+        Etats possibles : Empty, Ship, Hit, Sunk.
+      operationId: getPlayerBoard
+      responses:
+        '200':
+          description: Grille du joueur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/games/{id}/board/opponent:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [Boards]
+      summary: Lire la grille adverse masquee
+      description: |
+        Grille de l'ordinateur telle que le joueur a le droit de la connaitre.
+        Etats possibles : Unknown, Miss, Hit, Sunk. Aucune cellule ne revele un
+        navire non touche.
+      operationId: getOpponentBoard
+      responses:
+        '200':
+          description: Grille adverse masquee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    GameId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant de la partie
+      schema:
+        type: string
+        format: uuid
+      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+
+  responses:
+    ValidationProblem:
+      description: Requete invalide (echec de validation FluentValidation)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+    NotFound:
+      description: Partie introuvable
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Conflict:
+      description: Coup refuse ou partie deja terminee
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    CreateGameRequest:
+      type: object
+      description: Options de creation. Toutes facultatives, valeurs par defaut appliquees.
+      properties:
+        boardSize:
+          type: integer
+          minimum: 5
+          maximum: 20
+          default: 10
+          description: Cote de la grille carree
+        difficulty:
+          $ref: '#/components/schemas/Difficulty'
+      example:
+        boardSize: 10
+        difficulty: Normal
+
+    Difficulty:
+      type: string
+      description: Strategie de l'adversaire
+      enum: [Easy, Normal, Hard]
+      default: Normal
+
+    GameStatus:
+      type: string
+      description: |
+        Etat de la partie.
+        Waiting : partie creee, aucun coup joue.
+        PlayerTurn / ComputerTurn : partie en cours.
+        PlayerWon / ComputerWon : partie terminee, plus aucun coup accepte.
+      enum:
+        - Waiting
+        - PlayerTurn
+        - ComputerTurn
+        - PlayerWon
+        - ComputerWon
+
+    Player:
+      type: string
+      enum: [Player, Computer]
+
+    ShotOutcome:
+      type: string
+      description: Resultat d'un tir
+      enum: [Miss, Hit, Sunk]
+
+    VisibleCellState:
+      type: string
+      description: |
+        Etat d'une cellule tel que le joueur a le droit de le voir.
+        Grille joueur : Empty, Ship, Hit, Sunk.
+        Grille adverse : Unknown, Miss, Hit, Sunk.
+      enum:
+        - Unknown
+        - Empty
+        - Ship
+        - Miss
+        - Hit
+        - Sunk
+
+    BoardOwner:
+      type: string
+      enum: [Player, Opponent]
+
+    GameDto:
+      type: object
+      description: Etat d'une partie visible par le joueur
+      required: [id, status, boardSize, shotCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/GameStatus'
+        currentTurn:
+          allOf:
+            - $ref: '#/components/schemas/Player'
+          nullable: true
+          description: Null lorsque la partie est terminee
+        boardSize:
+          type: integer
+          description: Cote de la grille carree
+        shotCount:
+          type: integer
+          description: Nombre de coups valides joues par le joueur
+        createdAt:
+          type: string
+          format: date-time
+      example:
+        id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        status: PlayerTurn
+        currentTurn: Player
+        boardSize: 10
+        shotCount: 0
+        createdAt: '2026-03-15T09:30:00Z'
+
+    CellDto:
+      type: object
+      required: [x, y, state]
+      properties:
+        x:
+          type: integer
+          minimum: 0
+          description: Colonne, indexee a partir de 0
+        y:
+          type: integer
+          minimum: 0
+          description: Ligne, indexee a partir de 0
+        state:
+          $ref: '#/components/schemas/VisibleCellState'
+
+    BoardDto:
+      type: object
+      description: |
+        Grille et etats visibles. Le tableau cells contient size x size elements.
+        Pour la grille adverse, aucune cellule n'a l'etat Ship.
+      required: [owner, size, cells]
+      properties:
+        owner:
+          $ref: '#/components/schemas/BoardOwner'
+        size:
+          type: integer
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/CellDto'
+      example:
+        owner: Opponent
+        size: 10
+        cells:
+          - { x: 0, y: 0, state: Unknown }
+          - { x: 1, y: 0, state: Miss }
+          - { x: 2, y: 0, state: Hit }
+
+    ShotRequest:
+      type: object
+      description: Coordonnees du tir du joueur sur la grille adverse
+      required: [x, y]
+      properties:
+        x:
+          type: integer
+          minimum: 0
+          description: Colonne ciblee, indexee a partir de 0
+        y:
+          type: integer
+          minimum: 0
+          description: Ligne ciblee, indexee a partir de 0
+      example:
+        x: 4
+        y: 7
+
+    ShotOutcomeDto:
+      type: object
+      description: Resultat d'un tir unique
+      required: [x, y, outcome]
+      properties:
+        x:
+          type: integer
+        y:
+          type: integer
+        outcome:
+          $ref: '#/components/schemas/ShotOutcome'
+        sunkShipName:
+          type: string
+          nullable: true
+          description: Renseigne uniquement lorsque outcome vaut Sunk
+      example:
+        x: 4
+        y: 7
+        outcome: Sunk
+        sunkShipName: Torpilleur
+
+    ShotResultDto:
+      type: object
+      description: |
+        Resultat du tour complet : le tir du joueur, puis la reponse de
+        l'ordinateur lorsque la partie continue.
+      required: [playerShot, status]
+      properties:
+        playerShot:
+          $ref: '#/components/schemas/ShotOutcomeDto'
+        computerShot:
+          allOf:
+            - $ref: '#/components/schemas/ShotOutcomeDto'
+          nullable: true
+          description: Null si la partie s'est terminee sur le tir du joueur
+        status:
+          $ref: '#/components/schemas/GameStatus'
+      example:
+        playerShot:
+          x: 4
+          y: 7
+          outcome: Hit
+          sunkShipName: null
+        computerShot:
+          x: 2
+          y: 3
+          outcome: Miss
+          sunkShipName: null
+        status: PlayerTurn
+
+    ProblemDetails:
+      type: object
+      description: Reponse d'erreur au format RFC 7807
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      example:
+        type: https://tools.ietf.org/html/rfc9110#section-15.5.5
+        title: Not Found
+        status: 404
+        detail: Partie inconnue
+
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              description: Messages de validation par champ
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+          example:
+            title: One or more validation errors occurred.
+            status: 400
+            errors:
+              x:
+                - 'La colonne doit etre comprise entre 0 et 9.'
