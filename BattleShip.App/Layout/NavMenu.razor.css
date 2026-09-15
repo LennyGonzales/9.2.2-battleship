@@ -4,7 +4,7 @@
     padding: 0.85rem 1.5rem;
 }
 
-.war-room__brand-link {
+.war-room__header ::deep .war-room__brand-link {
     display: flex;
     align-items: center;
     gap: 0.6rem;
