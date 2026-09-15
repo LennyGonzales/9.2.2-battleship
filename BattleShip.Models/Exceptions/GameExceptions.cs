@@ -21,3 +21,8 @@ public sealed class ShotOutOfBoundsException : Exception
     public ShotOutOfBoundsException(int x, int y)
         : base($"Coordonnees hors grille : ({x},{y}).") { }
 }
+
+public sealed class FleetPlacementException : Exception
+{
+    public FleetPlacementException(string message) : base(message) { }
+}

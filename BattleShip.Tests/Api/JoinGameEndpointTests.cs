@@ -38,8 +38,8 @@ public class JoinGameEndpointTests : IClassFixture<WebApplicationFactory<Program
 
         var joined = await joinResponse.Content.ReadFromJsonAsync<JoinGameDto>(JsonOptions);
         Assert.NotNull(joined);
-        Assert.Equal(GameStatus.Player1Turn, joined.Status);
-        Assert.Equal(PlayerSide.Player1, joined.CurrentTurn);
+        Assert.Equal(GameStatus.PlacingFleet, joined.Status);
+        Assert.Null(joined.CurrentTurn);
         Assert.False(string.IsNullOrWhiteSpace(joined.PlayerToken));
     }
 

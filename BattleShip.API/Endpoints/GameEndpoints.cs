@@ -134,14 +134,14 @@ public static class GameEndpoints
         if (game is null)
             return GameNotFoundProblem();
 
-        if (game.Player1Board is null || game.Player2Board is null)
-            return GameNotStartedProblem();
-
         var participant = participantResolver.Resolve(game, playerToken);
         if (participant is null)
             return GameNotFoundProblem();
 
-        var board = game.GetBoard(participant.Value);
+        var board = GetParticipantBoard(game, participant.Value);
+        if (board is null)
+            return GameNotStartedProblem();
+
         return TypedResults.Ok(GameMapper.ToBoardDto(board, BoardOwner.Player));
     }
 
@@ -166,6 +166,14 @@ public static class GameEndpoints
         var board = game.GetOpponentBoard(participant.Value);
         return TypedResults.Ok(GameMapper.ToBoardDto(board, BoardOwner.Opponent));
     }
+
+    private static Board? GetParticipantBoard(Game game, Participant participant) =>
+        participant switch
+        {
+            Participant.Player1 => game.Player1Board,
+            Participant.Player2 => game.Player2Board,
+            _ => null
+        };
 
     private static IResult GameNotFoundProblem() =>
         TypedResults.Problem(detail: "Partie inconnue", statusCode: StatusCodes.Status404NotFound);

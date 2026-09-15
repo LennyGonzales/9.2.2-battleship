@@ -34,6 +34,7 @@ builder.Services.AddSingleton<PlayerTokenService>();
 builder.Services.AddSingleton<ParticipantResolver>();
 builder.Services.AddScoped<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
 builder.Services.AddScoped<IValidator<ShotRequest>, ShotRequestValidator>();
+builder.Services.AddScoped<IValidator<PlaceFleetRequest>, PlaceFleetRequestValidator>();
 builder.Services.AddSingleton<Random>();
 
 var app = builder.Build();
@@ -45,6 +46,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.MapGameEndpoints();
+app.MapFleetEndpoints();
 app.MapShotEndpoints();
 
 app.Run();

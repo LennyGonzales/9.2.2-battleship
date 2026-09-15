@@ -3,6 +3,7 @@ namespace BattleShip.Models.Domain;
 public enum GameStatus
 {
     Waiting,
+    PlacingFleet,
     PlayerTurn,
     ComputerTurn,
     PlayerWon,

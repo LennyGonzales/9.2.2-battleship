@@ -34,8 +34,8 @@ public class CreateGameEndpointTests : IClassFixture<WebApplicationFactory<Progr
         var dto = await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions);
         Assert.NotNull(dto);
         Assert.NotEqual(Guid.Empty, dto.Id);
-        Assert.Equal(GameStatus.PlayerTurn, dto.Status);
-        Assert.Equal(PlayerSide.Player, dto.CurrentTurn);
+        Assert.Equal(GameStatus.PlacingFleet, dto.Status);
+        Assert.Null(dto.CurrentTurn);
         Assert.Equal(GameOptions.DefaultBoardSize, dto.BoardSize);
         Assert.Equal(0, dto.ShotCount);
     }

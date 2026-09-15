@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Tests.TestHelpers;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace BattleShip.Tests.Api;
@@ -86,7 +87,13 @@ public class FireShotEndpointTests : IClassFixture<WebApplicationFactory<Program
         var created = await createResponse.Content.ReadFromJsonAsync<GameCreatedDto>(JsonOptions);
         Assert.NotNull(created);
 
-        await _client.PostAsync($"/api/games/{created.Id}/join", null);
+        var joinResponse = await _client.PostAsync($"/api/games/{created.Id}/join", null);
+        joinResponse.EnsureSuccessStatusCode();
+        var joined = await joinResponse.Content.ReadFromJsonAsync<JoinGameDto>(JsonOptions);
+        Assert.NotNull(joined);
+
+        await PlaceFleetAsync(created.Id, created.PlayerToken!);
+        await PlaceFleetAsync(created.Id, joined.PlayerToken);
 
         var response = await _client.PostAsJsonAsync($"/api/games/{created.Id}/shots", new { x = 0, y = 0 });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -103,6 +110,11 @@ public class FireShotEndpointTests : IClassFixture<WebApplicationFactory<Program
 
         var joinResponse = await _client.PostAsync($"/api/games/{created.Id}/join", null);
         joinResponse.EnsureSuccessStatusCode();
+        var joined = await joinResponse.Content.ReadFromJsonAsync<JoinGameDto>(JsonOptions);
+        Assert.NotNull(joined);
+
+        await PlaceFleetAsync(created.Id, created.PlayerToken);
+        await PlaceFleetAsync(created.Id, joined.PlayerToken);
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/games/{created.Id}/shots")
         {
@@ -126,6 +138,22 @@ public class FireShotEndpointTests : IClassFixture<WebApplicationFactory<Program
 
         var dto = await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions);
         Assert.NotNull(dto);
+
+        var fleetResponse = await _client.PostAsJsonAsync($"/api/games/{dto.Id}/fleet", FleetTestData.ValidFleetJson);
+        fleetResponse.EnsureSuccessStatusCode();
+
         return dto.Id;
+    }
+
+    private async Task PlaceFleetAsync(Guid gameId, string playerToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/games/{gameId}/fleet")
+        {
+            Content = JsonContent.Create(FleetTestData.ValidFleetJson)
+        };
+        request.Headers.Add(PlayerTokenHeaders.HeaderName, playerToken);
+
+        var response = await _client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
     }
 }

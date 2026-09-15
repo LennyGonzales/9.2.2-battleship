@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Tests.TestHelpers;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace BattleShip.Tests.Api;
@@ -24,12 +25,28 @@ public class GetOpponentBoardEndpointTests : IClassFixture<WebApplicationFactory
     }
 
     [Fact]
-    public async Task GetOpponentBoard_ForFreshVsComputerGame_Returns200WithNoShipsRevealed()
+    public async Task GetOpponentBoard_BeforeFleetPlacement_Returns409()
     {
         var createResponse = await _client.PostAsJsonAsync("/api/games", new { });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<GameDto>(JsonOptions);
         Assert.NotNull(created);
+
+        var response = await _client.GetAsync($"/api/games/{created.Id}/board/opponent");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetOpponentBoard_AfterFleetPlacement_Returns200WithNoShipsRevealed()
+    {
+        var createResponse = await _client.PostAsJsonAsync("/api/games", new { });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<GameDto>(JsonOptions);
+        Assert.NotNull(created);
+
+        var fleetResponse = await _client.PostAsJsonAsync($"/api/games/{created.Id}/fleet", FleetTestData.ValidFleetJson);
+        fleetResponse.EnsureSuccessStatusCode();
 
         var response = await _client.GetAsync($"/api/games/{created.Id}/board/opponent");
 
@@ -40,9 +57,6 @@ public class GetOpponentBoardEndpointTests : IClassFixture<WebApplicationFactory
         Assert.Equal(BoardOwner.Opponent, board.Owner);
         Assert.Equal(GameOptions.DefaultBoardSize, board.Size);
         Assert.Equal(board.Size * board.Size, board.Cells.Count);
-
-        // Visibility rule: before any shot is fired, the enemy fleet must be
-        // entirely hidden - no cell may reveal Ship, Hit, Sunk or Miss.
         Assert.All(board.Cells, cell => Assert.Equal(VisibleCellState.Unknown, cell.State));
     }
 

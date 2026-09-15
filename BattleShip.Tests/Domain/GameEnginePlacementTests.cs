@@ -1,13 +1,14 @@
 using BattleShip.API.Services;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Tests.TestHelpers;
 
 namespace BattleShip.Tests.Domain;
 
 public class GameEnginePlacementTests
 {
     [Fact]
-    public async Task CreateGameAsync_PlacesFleetWithoutOverlap()
+    public async Task CreateGameAsync_PvE_DoesNotPlaceFleets()
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(42);
@@ -15,37 +16,54 @@ public class GameEnginePlacementTests
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
 
-        AssertFleetIsValid(game.PlayerBoard);
-        AssertFleetIsValid(game.ComputerBoard);
+        Assert.Equal(GameStatus.PlacingFleet, game.Status);
+        Assert.Empty(game.Player1Board!.Ships);
+        Assert.Null(game.Player2Board);
     }
 
     [Fact]
-    public async Task CreateGameAsync_PlayerAndComputerBoardsAreDistinct()
+    public async Task PlaceFleetAsync_PvE_PlacesValidFleetsWithoutOverlap()
+    {
+        var repository = new InMemoryGameRepository();
+        var random = new Random(42);
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+
+        var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
+        var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
+
+        AssertFleetIsValid(updated.Player1Board);
+        AssertFleetIsValid(updated.Player2Board!);
+    }
+
+    [Fact]
+    public async Task PlaceFleetAsync_PvE_PlayerAndComputerBoardsAreDistinct()
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(123);
         var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(null);
+        var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
 
-        var playerCells = GetShipCells(game.PlayerBoard);
-        var computerCells = GetShipCells(game.ComputerBoard);
+        var playerCells = GetShipCells(updated.Player1Board);
+        var computerCells = GetShipCells(updated.Player2Board!);
 
         Assert.NotEqual(playerCells, computerCells);
     }
 
     [Fact]
-    public async Task CreateGameAsync_InitialStateIsPlayerTurn()
+    public async Task PlaceFleetAsync_PvE_InitialStateIsPlayerTurn()
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(7);
         var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(null);
+        var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
 
-        Assert.Equal(GameStatus.PlayerTurn, game.Status);
-        Assert.Equal(PlayerSide.Player, game.CurrentTurn);
-        Assert.Equal(0, game.ShotCount);
+        Assert.Equal(GameStatus.PlayerTurn, updated.Status);
+        Assert.Equal(PlayerSide.Player, updated.CurrentTurn);
+        Assert.Equal(0, updated.ShotCount);
     }
 
     private static void AssertFleetIsValid(Board board)

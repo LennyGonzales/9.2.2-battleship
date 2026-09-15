@@ -3,6 +3,7 @@ using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
 using BattleShip.Models.Exceptions;
 using BattleShip.Models.Services;
+using BattleShip.Tests.TestHelpers;
 
 namespace BattleShip.Tests.Domain;
 
@@ -14,7 +15,7 @@ public class GameEngineShotTests
         var repository = new InMemoryGameRepository();
         var engine = CreateEngine(repository, new Random(42));
 
-        var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal, null));
+        var game = await CreateReadyPveGameAsync(engine);
         var result = await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
 
         Assert.Equal(Participant.Player1, result.Shooter);
@@ -32,7 +33,7 @@ public class GameEngineShotTests
         var repository = new InMemoryGameRepository();
         var engine = CreateEngine(repository, new Random(7));
 
-        var game = await engine.CreateGameAsync(null);
+        var game = await CreateReadyPveGameAsync(engine);
         await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
 
         var result = await engine.FireShotAsync(game.Id, null, null, null);
@@ -51,7 +52,7 @@ public class GameEngineShotTests
         var repository = new InMemoryGameRepository();
         var engine = CreateEngine(repository, new Random(1));
 
-        var game = await engine.CreateGameAsync(null);
+        var game = await CreateReadyPveGameAsync(engine);
         await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
         await engine.FireShotAsync(game.Id, null, null, null);
 
@@ -79,6 +80,7 @@ public class GameEngineShotTests
             opponent);
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(5, Difficulty.Easy, null));
+        await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
         var saved = await repository.GetByIdAsync(game.Id);
         Assert.NotNull(saved);
 
@@ -98,11 +100,17 @@ public class GameEngineShotTests
         var repository = new InMemoryGameRepository();
         var engine = CreateEngine(repository, new Random(3));
 
-        var game = await engine.CreateGameAsync(null);
+        var game = await CreateReadyPveGameAsync(engine);
         await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
 
         await Assert.ThrowsAsync<GameConflictException>(() =>
             engine.FireShotAsync(game.Id, null, 1, 1));
+    }
+
+    private static async Task<Game> CreateReadyPveGameAsync(GameEngine engine)
+    {
+        var game = await engine.CreateGameAsync(null);
+        return await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
     }
 
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>

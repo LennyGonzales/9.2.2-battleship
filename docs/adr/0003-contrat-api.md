@@ -22,12 +22,13 @@ Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `Gam
 - Réponse `201 Created` + header `Location: /api/games/{id}`
 - `GET /api/games/{id}` retourne `200` + `GameDto` ou `404` ProblemDetails (`detail: "Partie inconnue"`)
 - Erreurs de validation → `400` avec `ValidationProblemDetails` (FluentValidation)
-- Placement aléatoire des flottes joueur et ordinateur à la création (moteur `GameEngine`)
+- `POST /api/games` PvE retourne `PlacingFleet` avec grille joueur vide ; `POST /api/games/{id}/fleet` place la flotte joueur puis l'ordinateur automatiquement
+- PvP : chaque joueur place sa flotte via `POST /fleet` avec `X-Player-Token` ; la partie démarre quand les deux flottes sont validées
 - `POST /api/games/{id}/shots` : **un tir par requête** ; PvE alterne `PlayerTurn` (body `{x,y}`) et `ComputerTurn` (body vide) ; PvP exige `X-Player-Token` ; réponse `ShotResultDto` (`shot`, `shooter`, `status`) ; `409` si coup refusé sans mutation
 
 ## Conséquences
 
-- Le front devra enchaîner `POST /api/games` puis `GET /api/games/{id}/board/player` (route future)
+- Le front devra enchaîner `POST /api/games` → placement local → `POST /api/games/{id}/fleet` → `GET /api/games/{id}/board/player`
 - La validation est explicite côté API (`CreateGameRequestValidator`), pas dans le domaine
 - Les statistiques de partie restent hors REST (service gRPC `GameStats`, ADR 0004 à venir)
 - Persistance en mémoire (`InMemoryGameRepository`) suffisante pour le TP

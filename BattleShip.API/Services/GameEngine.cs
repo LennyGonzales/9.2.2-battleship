@@ -23,6 +23,7 @@ public sealed class GameEngine(
             {
                 Mode = GameMode.VsPlayer,
                 BoardSize = boardSize,
+                Player1Board = new Board(boardSize),
                 Status = GameStatus.Waiting,
                 ActiveParticipant = null,
                 Player1Token = tokenService.GenerateToken(),
@@ -33,21 +34,14 @@ public sealed class GameEngine(
             return waitingGame;
         }
 
-        var playerBoard = new Board(boardSize);
-        var computerBoard = new Board(boardSize);
-
-        fleetPlacer.PlaceFleetRandomly(playerBoard);
-        fleetPlacer.PlaceFleetRandomly(computerBoard);
-
         var game = new Game
         {
             Mode = GameMode.VsComputer,
             BoardSize = boardSize,
-            Player1Board = playerBoard,
-            Player2Board = computerBoard,
+            Player1Board = new Board(boardSize),
             Difficulty = difficulty,
-            Status = GameStatus.PlayerTurn,
-            ActiveParticipant = Participant.Player1,
+            Status = GameStatus.PlacingFleet,
+            ActiveParticipant = null,
             ShotCount = 0
         };
 
@@ -66,17 +60,46 @@ public sealed class GameEngine(
         if (game.Status != GameStatus.Waiting || game.Player2Token is not null)
             throw new GameConflictException("Cette partie n'est plus disponible.");
 
-        var player1Board = new Board(game.BoardSize);
-        var player2Board = new Board(game.BoardSize);
-
-        fleetPlacer.PlaceFleetRandomly(player1Board);
-        fleetPlacer.PlaceFleetRandomly(player2Board);
-
-        game.Player1Board = player1Board;
-        game.Player2Board = player2Board;
+        game.Player2Board = new Board(game.BoardSize);
         game.Player2Token = tokenService.GenerateToken();
-        game.Status = GameStatus.Player1Turn;
-        game.ActiveParticipant = Participant.Player1;
+        game.Status = GameStatus.PlacingFleet;
+        game.ActiveParticipant = null;
+
+        await repository.SaveAsync(game, cancellationToken);
+        return game;
+    }
+
+    public async Task<Game> PlaceFleetAsync(
+        Guid gameId,
+        Participant? caller,
+        PlaceFleetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var game = await repository.GetByIdAsync(gameId, cancellationToken)
+            ?? throw new GameNotFoundException();
+
+        ValidateFleetPlacementAllowed(game, caller);
+
+        var participant = ResolveFleetParticipant(game, caller);
+        var board = game.GetBoard(participant);
+
+        if (IsFleetComplete(board))
+            throw new GameConflictException("La flotte est deja placee.");
+
+        fleetPlacer.PlaceFleetFromRequest(board, request.Ships);
+
+        if (game.Mode == GameMode.VsComputer)
+        {
+            game.Player2Board = new Board(game.BoardSize);
+            fleetPlacer.PlaceFleetRandomly(game.Player2Board);
+            game.Status = GameStatus.PlayerTurn;
+            game.ActiveParticipant = Participant.Player1;
+        }
+        else if (IsFleetComplete(game.Player1Board) && IsFleetComplete(game.Player2Board))
+        {
+            game.Status = GameStatus.Player1Turn;
+            game.ActiveParticipant = Participant.Player1;
+        }
 
         await repository.SaveAsync(game, cancellationToken);
         return game;
@@ -92,7 +115,7 @@ public sealed class GameEngine(
         var game = await repository.GetByIdAsync(gameId, cancellationToken)
             ?? throw new GameNotFoundException();
 
-        if (game.IsFinished() || game.Status == GameStatus.Waiting)
+        if (game.IsFinished() || game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
             throw new GameConflictException();
 
         var expectedShooter = GetExpectedShooter(game);
@@ -119,6 +142,37 @@ public sealed class GameEngine(
         await repository.SaveAsync(game, cancellationToken);
         return new ShotTurnResult(resolution, expectedShooter, game.Status);
     }
+
+    private static void ValidateFleetPlacementAllowed(Game game, Participant? caller)
+    {
+        if (game.Mode == GameMode.VsComputer)
+        {
+            if (game.Status != GameStatus.PlacingFleet)
+                throw new GameConflictException("Le placement de flotte n'est pas autorise dans cet etat.");
+
+            return;
+        }
+
+        if (caller is null)
+            throw new InvalidPlayerTokenException();
+
+        if (game.Status is not (GameStatus.Waiting or GameStatus.PlacingFleet))
+            throw new GameConflictException("Le placement de flotte n'est pas autorise dans cet etat.");
+
+        if (game.Status == GameStatus.Waiting && caller != Participant.Player1)
+            throw new GameConflictException("Le joueur 2 ne peut placer sa flotte qu'apres avoir rejoint la partie.");
+    }
+
+    private static Participant ResolveFleetParticipant(Game game, Participant? caller) =>
+        game.Mode switch
+        {
+            GameMode.VsComputer => Participant.Player1,
+            GameMode.VsPlayer => caller ?? throw new InvalidPlayerTokenException(),
+            _ => throw new InvalidOperationException("Mode de jeu inconnu.")
+        };
+
+    private static bool IsFleetComplete(Board? board) =>
+        board?.Ships.Count == GameOptions.DefaultFleet.Length;
 
     private static Participant GetExpectedShooter(Game game) =>
         game.Status switch

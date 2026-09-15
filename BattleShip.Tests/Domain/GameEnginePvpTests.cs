@@ -2,6 +2,7 @@ using BattleShip.API.Services;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
 using BattleShip.Models.Exceptions;
+using BattleShip.Tests.TestHelpers;
 
 namespace BattleShip.Tests.Domain;
 
@@ -18,14 +19,15 @@ public class GameEnginePvpTests
         Assert.Equal(GameMode.VsPlayer, game.Mode);
         Assert.Equal(GameStatus.Waiting, game.Status);
         Assert.Null(game.ActiveParticipant);
-        Assert.Null(game.Player1Board);
+        Assert.NotNull(game.Player1Board);
         Assert.Null(game.Player2Board);
+        Assert.Empty(game.Player1Board!.Ships);
         Assert.False(string.IsNullOrWhiteSpace(game.Player1Token));
         Assert.Null(game.Player2Token);
     }
 
     [Fact]
-    public async Task JoinGameAsync_PlacesFleetsAndStartsPlayer1Turn()
+    public async Task JoinGameAsync_CreatesEmptyBoardsAndPlacingFleetStatus()
     {
         var repository = new InMemoryGameRepository();
         var engine = CreateEngine(repository, new Random(7));
@@ -33,13 +35,30 @@ public class GameEnginePvpTests
         var created = await engine.CreateGameAsync(new CreateGameRequest(10, null, GameMode.VsPlayer));
         var joined = await engine.JoinGameAsync(created.Id);
 
-        Assert.Equal(GameStatus.Player1Turn, joined.Status);
-        Assert.Equal(Participant.Player1, joined.ActiveParticipant);
+        Assert.Equal(GameStatus.PlacingFleet, joined.Status);
+        Assert.Null(joined.ActiveParticipant);
         Assert.NotNull(joined.Player1Board);
         Assert.NotNull(joined.Player2Board);
         Assert.False(string.IsNullOrWhiteSpace(joined.Player2Token));
-        Assert.Equal(GameOptions.DefaultFleet.Length, joined.Player1Board!.Ships.Count);
-        Assert.Equal(GameOptions.DefaultFleet.Length, joined.Player2Board!.Ships.Count);
+        Assert.Empty(joined.Player1Board!.Ships);
+        Assert.Empty(joined.Player2Board!.Ships);
+    }
+
+    [Fact]
+    public async Task JoinGameAsync_AfterBothFleetsPlaced_StartsPlayer1Turn()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(7));
+
+        var created = await engine.CreateGameAsync(new CreateGameRequest(10, null, GameMode.VsPlayer));
+        await engine.PlaceFleetAsync(created.Id, Participant.Player1, FleetTestData.ValidFleet);
+        var joined = await engine.JoinGameAsync(created.Id);
+        var started = await engine.PlaceFleetAsync(joined.Id, Participant.Player2, FleetTestData.ValidFleet);
+
+        Assert.Equal(GameStatus.Player1Turn, started.Status);
+        Assert.Equal(Participant.Player1, started.ActiveParticipant);
+        Assert.Equal(GameOptions.DefaultFleet.Length, started.Player1Board!.Ships.Count);
+        Assert.Equal(GameOptions.DefaultFleet.Length, started.Player2Board!.Ships.Count);
     }
 
     [Fact]
