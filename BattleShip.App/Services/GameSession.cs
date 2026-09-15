@@ -37,7 +37,7 @@ public sealed class GameSession(IGameApiClient client)
 
         var result = await client.FireShotAsync(Game.Id, new ShotRequest(x, y));
         _history.Add(result);
-        Game = Game with { Status = result.Status };
+        Game = Game with { Status = result.Status, ShotCount = Game.ShotCount + 1 };
         await RefreshBoardsAsync();
     });
 
@@ -64,6 +64,10 @@ public sealed class GameSession(IGameApiClient client)
         catch (GameApiException ex)
         {
             AlertMessage = ex.Problem.Detail ?? ex.Problem.Title ?? "Une erreur inattendue est survenue.";
+        }
+        catch (Exception)
+        {
+            AlertMessage = "Liaison avec le QG interrompue.";
         }
         finally
         {
