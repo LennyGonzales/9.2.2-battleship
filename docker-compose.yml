@@ -1,0 +1,10 @@
+services:
+  sdk:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /src
+    volumes:
+      - .:/src
+      - nuget:/root/.nuget/packages
+
+volumes:
+  nuget:
