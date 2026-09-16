@@ -103,7 +103,7 @@ else
         @if (Session.OpponentBoard is not null)
         {
             <RadarGrid Board="Session.OpponentBoard"
-                       Interactive="@(Session.CanFire || IsTargetingCells)"
+                       Interactive="@(_pendingPowerUp is null ? Session.CanFire : IsTargetingCells)"
                        Title="EAUX ENNEMIES"
                        OnCellClick="HandleOpponentCellClickAsync" />
         }
@@ -169,13 +169,16 @@ else
 
     private async Task HandleOpponentCellClickAsync((int X, int Y) target)
     {
-        if (_pendingPowerUp is { } ship && IsTargetingCells)
+        if (_pendingPowerUp is { } ship)
         {
-            _pendingCells.Add(target);
-            if (_pendingCells.Count == 2)
+            if (IsTargetingCells)
             {
-                var cells = _pendingCells.Select(c => new CellTarget(c.X, c.Y)).ToList();
-                await SubmitPowerUpAsync(ship, cells: cells);
+                _pendingCells.Add(target);
+                if (_pendingCells.Count == 2)
+                {
+                    var cells = _pendingCells.Select(c => new CellTarget(c.X, c.Y)).ToList();
+                    await SubmitPowerUpAsync(ship, cells: cells);
+                }
             }
             return;
         }
