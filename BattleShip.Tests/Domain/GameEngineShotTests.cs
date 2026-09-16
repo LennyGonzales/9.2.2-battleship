@@ -77,7 +77,9 @@ public class GameEngineShotTests
             repository,
             new FleetPlacer(new Random(1)),
             new PlayerTokenService(),
-            opponent);
+            opponent,
+            new Random(1),
+            ObstacleGenerationOptions.None);
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(5, Difficulty.Easy, null));
         await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
@@ -114,7 +116,7 @@ public class GameEngineShotTests
     }
 
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
-        new(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
+        new(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random), random, ObstacleGenerationOptions.None);
 
     private static Board CreateSingleCellBoard()
     {

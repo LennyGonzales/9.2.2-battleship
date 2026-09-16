@@ -9,7 +9,9 @@ public sealed class GameEngine(
     IGameRepository repository,
     FleetPlacer fleetPlacer,
     PlayerTokenService tokenService,
-    IComputerOpponent computerOpponent) : IGameEngine
+    IComputerOpponent computerOpponent,
+    Random random,
+    ObstacleGenerationOptions obstacleOptions) : IGameEngine
 {
     public async Task<Game> CreateGameAsync(CreateGameRequest? request, CancellationToken cancellationToken = default)
     {
@@ -19,11 +21,15 @@ public sealed class GameEngine(
 
         if (mode == GameMode.VsPlayer)
         {
+            var player1Board = new Board(boardSize);
+            player1Board.PlaceObstacles(
+                obstacleOptions.Count, obstacleOptions.MinSize, obstacleOptions.MaxSize, random);
+
             var waitingGame = new Game
             {
                 Mode = GameMode.VsPlayer,
                 BoardSize = boardSize,
-                Player1Board = new Board(boardSize),
+                Player1Board = player1Board,
                 Status = GameStatus.Waiting,
                 ActiveParticipant = null,
                 Player1Token = tokenService.GenerateToken(),
@@ -34,11 +40,15 @@ public sealed class GameEngine(
             return waitingGame;
         }
 
+        var soloBoard = new Board(boardSize);
+        soloBoard.PlaceObstacles(
+            obstacleOptions.Count, obstacleOptions.MinSize, obstacleOptions.MaxSize, random);
+
         var game = new Game
         {
             Mode = GameMode.VsComputer,
             BoardSize = boardSize,
-            Player1Board = new Board(boardSize),
+            Player1Board = soloBoard,
             Difficulty = difficulty,
             Status = GameStatus.PlacingFleet,
             ActiveParticipant = null,
@@ -60,7 +70,11 @@ public sealed class GameEngine(
         if (game.Status != GameStatus.Waiting || game.Player2Token is not null)
             throw new GameConflictException("Cette partie n'est plus disponible.");
 
-        game.Player2Board = new Board(game.BoardSize);
+        var player2Board = new Board(game.BoardSize);
+        player2Board.PlaceObstacles(
+            obstacleOptions.Count, obstacleOptions.MinSize, obstacleOptions.MaxSize, random);
+
+        game.Player2Board = player2Board;
         game.Player2Token = tokenService.GenerateToken();
         game.Status = GameStatus.PlacingFleet;
         game.ActiveParticipant = null;
@@ -90,7 +104,11 @@ public sealed class GameEngine(
 
         if (game.Mode == GameMode.VsComputer)
         {
-            game.Player2Board = new Board(game.BoardSize);
+            var computerBoard = new Board(game.BoardSize);
+            computerBoard.PlaceObstacles(
+                obstacleOptions.Count, obstacleOptions.MinSize, obstacleOptions.MaxSize, random);
+
+            game.Player2Board = computerBoard;
             fleetPlacer.PlaceFleetRandomly(game.Player2Board);
             game.Status = GameStatus.PlayerTurn;
             game.ActiveParticipant = Participant.Player1;

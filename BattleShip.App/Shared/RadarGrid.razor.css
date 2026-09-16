@@ -76,6 +76,21 @@
     background: var(--br-alert);
 }
 
+.radar-cell--obstacle {
+    background: #4a3820;
+}
+
+.radar-cell--obstacle::before {
+    content: "⛰";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    color: var(--br-text-dim);
+}
+
 .radar-cell__ping {
     position: absolute;
     inset: 15%;

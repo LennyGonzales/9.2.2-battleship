@@ -21,7 +21,7 @@ public class GetOpponentBoardEndpointTests : IClassFixture<WebApplicationFactory
 
     public GetOpponentBoardEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateClientWithoutObstacles();
     }
 
     [Fact]

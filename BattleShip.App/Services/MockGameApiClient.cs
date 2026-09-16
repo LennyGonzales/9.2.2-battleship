@@ -18,12 +18,16 @@ public sealed class MockGameApiClient : IGameApiClient
         var boardSize = Math.Clamp(request.BoardSize ?? GameOptions.DefaultBoardSize, GameOptions.MinBoardSize, GameOptions.MaxBoardSize);
         var difficulty = request.Difficulty ?? Difficulty.Normal;
 
+        var playerBoard = new Board(boardSize);
+        playerBoard.PlaceObstacles(
+            GameOptions.DefaultObstacleCount, GameOptions.MinObstacleSize, GameOptions.MaxObstacleSize, Random.Shared);
+
         var game = new MockGame
         {
             Id = Guid.NewGuid(),
             BoardSize = boardSize,
             Difficulty = difficulty,
-            PlayerBoard = new Board(boardSize),
+            PlayerBoard = playerBoard,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         _games[game.Id] = game;
@@ -53,7 +57,11 @@ public sealed class MockGameApiClient : IGameApiClient
 
         PlaceFleetFromRequest(game.PlayerBoard, request.Ships);
 
-        game.ComputerBoard = new Board(game.BoardSize);
+        var computerBoard = new Board(game.BoardSize);
+        computerBoard.PlaceObstacles(
+            GameOptions.DefaultObstacleCount, GameOptions.MinObstacleSize, GameOptions.MaxObstacleSize, Random.Shared);
+
+        game.ComputerBoard = computerBoard;
         PlaceFleetRandomly(game.ComputerBoard, Random.Shared);
         game.Status = GameStatus.PlayerTurn;
 
@@ -63,7 +71,6 @@ public sealed class MockGameApiClient : IGameApiClient
     public Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
-        EnsureStarted(game);
         return Task.FromResult(ToBoardDto(game.PlayerBoard, BoardOwner.Player));
     }
 
@@ -330,6 +337,9 @@ public sealed class MockGameApiClient : IGameApiClient
         (BoardOwner.Opponent, CellState.Empty) => VisibleCellState.Unknown,
         (BoardOwner.Opponent, CellState.Miss) => VisibleCellState.Miss,
         (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
+        (BoardOwner.Opponent, CellState.Obstacle) => VisibleCellState.Unknown,
+        (_, CellState.Obstacle) => VisibleCellState.Obstacle,
+        (_, CellState.ObstacleHit) => VisibleCellState.Obstacle,
         (_, CellState.Empty) => VisibleCellState.Empty,
         (_, CellState.Ship) => VisibleCellState.Ship,
         (_, CellState.Hit) => VisibleCellState.Hit,

@@ -21,7 +21,7 @@ public class PlaceFleetEndpointTests : IClassFixture<WebApplicationFactory<Progr
 
     public PlaceFleetEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateClientWithoutObstacles();
     }
 
     [Fact]

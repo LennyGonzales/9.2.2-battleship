@@ -33,7 +33,7 @@ else if (Session.AwaitingOpponent)
 else if (Session.IsPlacingFleet)
 {
     <AlertBanner Message="@Session.AlertMessage" />
-    <FleetDeployment BoardSize="Session.Game.BoardSize" IsBusy="Session.IsBusy" OnDeploy="HandleDeployAsync" />
+    <FleetDeployment BoardSize="Session.Game.BoardSize" IsBusy="Session.IsBusy" PlayerBoard="Session.PlayerBoard" OnDeploy="HandleDeployAsync" />
 }
 else
 {

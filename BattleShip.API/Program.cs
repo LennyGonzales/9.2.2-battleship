@@ -4,6 +4,7 @@ using BattleShip.API.Services;
 using BattleShip.API.Validation;
 using BattleShip.Grpc;
 using BattleShip.Models.Contracts;
+using BattleShip.Models.Domain;
 using BattleShip.Models.Services;
 using FluentValidation;
 using System.Text.Json.Serialization;
@@ -41,6 +42,7 @@ builder.Services.AddScoped<IValidator<PlaceFleetRequest>, PlaceFleetRequestValid
 builder.Services.AddScoped<IValidator<GameStatsQuery>, GameStatsQueryValidator>();
 builder.Services.AddScoped<GameStatsCalculator>();
 builder.Services.AddSingleton<Random>();
+builder.Services.AddSingleton(ObstacleGenerationOptions.Default);
 
 var app = builder.Build();
 

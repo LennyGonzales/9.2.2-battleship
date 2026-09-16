@@ -59,6 +59,9 @@ public static class GameMapper
         // Le contrat de la grille joueur (swagger.yaml) n'expose pas d'etat Miss :
         // un tir adverse rate reste indiscernable d'une case jamais visee.
         (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
+        (BoardOwner.Opponent, CellState.Obstacle) => VisibleCellState.Unknown,
+        (_, CellState.Obstacle) => VisibleCellState.Obstacle,
+        (_, CellState.ObstacleHit) => VisibleCellState.Obstacle,
         (_, CellState.Empty) => VisibleCellState.Empty,
         (_, CellState.Ship) => VisibleCellState.Ship,
         (_, CellState.Hit) => VisibleCellState.Hit,

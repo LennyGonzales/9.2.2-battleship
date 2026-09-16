@@ -26,7 +26,7 @@ public sealed class Board
     public bool IsAlreadyTargeted(int x, int y)
     {
         var state = _cells[x, y];
-        return state is CellState.Miss or CellState.Hit or CellState.Sunk;
+        return state is CellState.Miss or CellState.Hit or CellState.Sunk or CellState.ObstacleHit;
     }
 
     public bool AreAllShipsSunk() => _ships.Count > 0 && _ships.All(s => s.IsSunk);
@@ -62,6 +62,12 @@ public sealed class Board
         if (IsAlreadyTargeted(x, y))
             throw new InvalidOperationException($"La case ({x},{y}) a deja ete ciblee.");
 
+        if (_cells[x, y] == CellState.Obstacle)
+        {
+            _cells[x, y] = CellState.ObstacleHit;
+            return new ShotResolution(x, y, ShotOutcome.Obstacle, null);
+        }
+
         if (_cells[x, y] == CellState.Empty)
         {
             _cells[x, y] = CellState.Miss;
@@ -81,6 +87,85 @@ public sealed class Board
         }
 
         return new ShotResolution(x, y, ShotOutcome.Hit, null);
+    }
+
+    public void PlaceObstacles(int count, int minSize, int maxSize, Random rng)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var targetSize = rng.Next(minSize, maxSize + 1);
+            TryPlaceOneObstacle(targetSize, rng);
+        }
+    }
+
+    public void ApplyObstacles(IEnumerable<(int X, int Y)> cells)
+    {
+        foreach (var (x, y) in cells)
+        {
+            if (IsWithinBounds(x, y))
+                _cells[x, y] = CellState.Obstacle;
+        }
+    }
+
+    private void TryPlaceOneObstacle(int targetSize, Random rng)
+    {
+        for (var attempt = 0; attempt < GameOptions.MaxObstaclePlacementAttempts; attempt++)
+        {
+            var startX = rng.Next(Size);
+            var startY = rng.Next(Size);
+
+            if (_cells[startX, startY] != CellState.Empty)
+                continue;
+
+            var cluster = GrowCluster(startX, startY, targetSize, rng);
+            if (cluster.Count != targetSize)
+                continue;
+
+            foreach (var (x, y) in cluster)
+                _cells[x, y] = CellState.Obstacle;
+            return;
+        }
+    }
+
+    private List<(int X, int Y)> GrowCluster(int startX, int startY, int targetSize, Random rng)
+    {
+        var cluster = new List<(int X, int Y)> { (startX, startY) };
+        var frontier = new List<(int X, int Y)> { (startX, startY) };
+
+        while (cluster.Count < targetSize && frontier.Count > 0)
+        {
+            var from = frontier[rng.Next(frontier.Count)];
+            var neighbors = GetEmptyNeighbors(from, cluster);
+
+            if (neighbors.Count == 0)
+            {
+                frontier.Remove(from);
+                continue;
+            }
+
+            var next = neighbors[rng.Next(neighbors.Count)];
+            cluster.Add(next);
+            frontier.Add(next);
+        }
+
+        return cluster;
+    }
+
+    private List<(int X, int Y)> GetEmptyNeighbors((int X, int Y) from, List<(int X, int Y)> cluster)
+    {
+        var candidates = new[]
+        {
+            (from.X + 1, from.Y),
+            (from.X - 1, from.Y),
+            (from.X, from.Y + 1),
+            (from.X, from.Y - 1),
+        };
+
+        return candidates
+            .Where(n => IsWithinBounds(n.Item1, n.Item2)
+                        && _cells[n.Item1, n.Item2] == CellState.Empty
+                        && !cluster.Contains(n))
+            .ToList();
     }
 
     private Ship? FindShipAt(int x, int y) =>

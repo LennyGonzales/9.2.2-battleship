@@ -165,12 +165,18 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
 
     private async Task RefreshBoardsAsync()
     {
-        if (Game is null || Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
+        if (Game is null)
         {
             return;
         }
 
         PlayerBoard = await client.GetPlayerBoardAsync(Game.Id, PlayerToken);
+
+        if (Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
+        {
+            return;
+        }
+
         OpponentBoard = await client.GetOpponentBoardAsync(Game.Id, PlayerToken);
     }
 

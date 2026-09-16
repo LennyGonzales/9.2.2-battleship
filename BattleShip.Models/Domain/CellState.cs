@@ -7,5 +7,7 @@ public enum CellState
     Miss,
     Hit,
     Sunk,
-    Unknown
+    Unknown,
+    Obstacle,
+    ObstacleHit
 }

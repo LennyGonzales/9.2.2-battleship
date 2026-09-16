@@ -12,5 +12,6 @@ public enum ShotOutcome
 {
     Miss,
     Hit,
-    Sunk
+    Sunk,
+    Obstacle
 }

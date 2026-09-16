@@ -8,6 +8,7 @@ public enum VisibleCellState
     Miss,
     Hit,
     Sunk,
+    Obstacle,
 }
 
 public enum BoardOwner

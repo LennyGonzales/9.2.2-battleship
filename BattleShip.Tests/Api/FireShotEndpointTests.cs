@@ -21,7 +21,7 @@ public class FireShotEndpointTests : IClassFixture<WebApplicationFactory<Program
 
     public FireShotEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateClientWithoutObstacles();
     }
 
     [Fact]

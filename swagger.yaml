@@ -348,14 +348,14 @@ components:
     ShotOutcome:
       type: string
       description: Resultat d'un tir
-      enum: [Miss, Hit, Sunk]
+      enum: [Miss, Hit, Sunk, Obstacle]
 
     VisibleCellState:
       type: string
       description: |
         Etat d'une cellule tel que le joueur a le droit de le voir.
-        Grille joueur : Empty, Ship, Hit, Sunk.
-        Grille adverse : Unknown, Miss, Hit, Sunk.
+        Grille joueur : Empty, Ship, Hit, Sunk, Obstacle.
+        Grille adverse : Unknown, Miss, Hit, Sunk, Obstacle (Obstacle uniquement apres un tir dessus).
       enum:
         - Unknown
         - Empty
@@ -363,6 +363,7 @@ components:
         - Miss
         - Hit
         - Sunk
+        - Obstacle
 
     BoardOwner:
       type: string

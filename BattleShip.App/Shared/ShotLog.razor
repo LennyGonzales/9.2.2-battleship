@@ -36,6 +36,7 @@
             ShotOutcome.Miss => $"{coord} — manque",
             ShotOutcome.Hit => $"{coord} — touche",
             ShotOutcome.Sunk => $"{coord} — coule ({outcome.SunkShipName})",
+            ShotOutcome.Obstacle => $"{coord} — île touchée",
             _ => coord,
         };
     }

@@ -6,6 +6,10 @@ public static class GameOptions
     public const int MinBoardSize = 5;
     public const int MaxBoardSize = 20;
     public const int MaxPlacementAttemptsPerShip = 100;
+    public const int DefaultObstacleCount = 3;
+    public const int MinObstacleSize = 1;
+    public const int MaxObstacleSize = 2;
+    public const int MaxObstaclePlacementAttempts = 50;
 
     public static readonly (string Name, int Length)[] DefaultFleet =
     [
