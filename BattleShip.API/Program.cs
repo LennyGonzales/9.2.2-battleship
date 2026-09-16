@@ -38,6 +38,7 @@ builder.Services.AddSingleton<PlayerTokenService>();
 builder.Services.AddSingleton<ParticipantResolver>();
 builder.Services.AddScoped<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
 builder.Services.AddScoped<IValidator<ShotRequest>, ShotRequestValidator>();
+builder.Services.AddScoped<IValidator<UsePowerUpRequest>, UsePowerUpRequestValidator>();
 builder.Services.AddScoped<IValidator<PlaceFleetRequest>, PlaceFleetRequestValidator>();
 builder.Services.AddScoped<IValidator<GameStatsQuery>, GameStatsQueryValidator>();
 builder.Services.AddScoped<GameStatsCalculator>();
@@ -57,6 +58,7 @@ app.MapGrpcService<GameStatsGrpcService>().EnableGrpcWeb();
 app.MapGameEndpoints();
 app.MapFleetEndpoints();
 app.MapShotEndpoints();
+app.MapPowerUpEndpoints();
 
 app.Run();
 

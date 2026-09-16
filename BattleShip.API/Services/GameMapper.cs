@@ -1,5 +1,6 @@
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using System.Linq;
 
 namespace BattleShip.API.Services;
 
@@ -48,8 +49,12 @@ public static class GameMapper
             }
         }
 
-        return new BoardDto(owner, board.Size, cells);
+        var ships = owner == BoardOwner.Player ? ToShipStatusDtos(board) : null;
+        return new BoardDto(owner, board.Size, cells, ships);
     }
+
+    private static IReadOnlyList<ShipStatusDto> ToShipStatusDtos(Board board) =>
+        board.Ships.Select(s => new ShipStatusDto(s.Name, s.Length, s.PowerUpType, s.IsSunk, s.PowerUpUsed)).ToList();
 
     private static VisibleCellState ToVisibleCellState(CellState state, BoardOwner owner) => (owner, state) switch
     {
