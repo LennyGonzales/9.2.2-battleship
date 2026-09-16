@@ -11,4 +11,6 @@ public interface IGameApiClient
     Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default);
     Task<BoardDto> GetOpponentBoardAsync(Guid id, string? playerToken, CancellationToken ct = default);
     Task<ShotResultDto> FireShotAsync(Guid id, ShotRequest shot, string? playerToken, CancellationToken ct = default);
+    Task<PowerUpResultDto> UsePowerUpAsync(Guid id, UsePowerUpRequest request, string? playerToken, CancellationToken ct = default);
+    Task<ComputerTurnResultDto> PlayComputerTurnAsync(Guid id, string? playerToken, CancellationToken ct = default);
 }
