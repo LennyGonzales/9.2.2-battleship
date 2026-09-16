@@ -41,17 +41,71 @@ else
 
     <AlertBanner Message="@Session.AlertMessage" />
 
+    @if (Session.PlayerBoard is { Ships: { } ships })
+    {
+        <PowerUpBar Ships="ships" Interactive="@(Session.CanFire && _pendingPowerUp is null)" OnSelect="SelectPowerUp" />
+    }
+
+    @if (_pendingPowerUp is { } pendingShip)
+    {
+        <section class="radar-panel power-up-target">
+            <header class="hud-label">Ciblage — @pendingShip.Name</header>
+
+            @if (IsTargetingLine)
+            {
+                <div class="power-up-target__controls">
+                    <label>
+                        Orientation
+                        <select @bind="_pendingOrientation">
+                            <option value="@Orientation.Row">Ligne</option>
+                            <option value="@Orientation.Column">Colonne</option>
+                        </select>
+                    </label>
+                    <label>
+                        Index
+                        <input type="number" min="0" max="@(Session.Game!.BoardSize - 1)" @bind="_pendingIndex" />
+                    </label>
+                    @if (pendingShip.PowerUpType == PowerUpType.Torpedo)
+                    {
+                        <label>
+                            Bord d'entree
+                            <select @bind="_pendingEdge">
+                                <option value="@Edge.Low">Bas / Gauche</option>
+                                <option value="@Edge.High">Haut / Droite</option>
+                            </select>
+                        </label>
+                    }
+                    <button type="button" class="btn-brass" @onclick="SubmitLinePowerUpAsync">Lancer</button>
+                </div>
+            }
+            else if (IsTargetingCells)
+            {
+                <p class="hud-label">Cliquez sur deux cases sur la grille ennemie (@_pendingCells.Count/2).</p>
+            }
+            else if (IsTargetingDecoy)
+            {
+                <p class="hud-label">Cliquez sur une case vide adjacente a votre @pendingShip.Name, sur votre grille.</p>
+            }
+
+            <button type="button" class="btn-brass" @onclick="CancelPowerUp">Annuler</button>
+        </section>
+    }
+
     <div class="battle__grids">
         @if (Session.PlayerBoard is not null)
         {
-            <RadarGrid Board="Session.PlayerBoard" Interactive="false" Title="VOTRE FLOTTE" />
+            <RadarGrid Board="Session.PlayerBoard"
+                       Interactive="IsTargetingDecoy"
+                       Title="VOTRE FLOTTE"
+                       TargetPredicate="@(s => s == VisibleCellState.Empty)"
+                       OnCellClick="HandleOwnCellClickAsync" />
         }
         @if (Session.OpponentBoard is not null)
         {
             <RadarGrid Board="Session.OpponentBoard"
-                       Interactive="Session.CanFire"
+                       Interactive="@(Session.CanFire || IsTargetingCells)"
                        Title="EAUX ENNEMIES"
-                       OnCellClick="HandleFireAsync" />
+                       OnCellClick="HandleOpponentCellClickAsync" />
         }
     </div>
 
@@ -88,6 +142,78 @@ else
         _ => false,
     };
 
+    private ShipStatusDto? _pendingPowerUp;
+    private Orientation? _pendingOrientation;
+    private int? _pendingIndex;
+    private Edge? _pendingEdge;
+    private readonly List<(int X, int Y)> _pendingCells = [];
+
+    private bool IsTargetingLine => _pendingPowerUp?.PowerUpType is PowerUpType.Recon or PowerUpType.Torpedo;
+    private bool IsTargetingCells => _pendingPowerUp?.PowerUpType is PowerUpType.TwinStrike or PowerUpType.DoubleStrike;
+    private bool IsTargetingDecoy => _pendingPowerUp?.PowerUpType == PowerUpType.Decoy;
+
+    private void SelectPowerUp(ShipStatusDto ship)
+    {
+        _pendingPowerUp = ship;
+        _pendingOrientation = null;
+        _pendingIndex = null;
+        _pendingEdge = null;
+        _pendingCells.Clear();
+    }
+
+    private void CancelPowerUp()
+    {
+        _pendingPowerUp = null;
+        _pendingCells.Clear();
+    }
+
+    private async Task HandleOpponentCellClickAsync((int X, int Y) target)
+    {
+        if (_pendingPowerUp is { } ship && IsTargetingCells)
+        {
+            _pendingCells.Add(target);
+            if (_pendingCells.Count == 2)
+            {
+                var cells = _pendingCells.Select(c => new CellTarget(c.X, c.Y)).ToList();
+                await SubmitPowerUpAsync(ship, cells: cells);
+            }
+            return;
+        }
+
+        await Session.FireShotAsync(target.X, target.Y);
+    }
+
+    private async Task HandleOwnCellClickAsync((int X, int Y) target)
+    {
+        if (_pendingPowerUp is { } ship && IsTargetingDecoy)
+        {
+            await SubmitPowerUpAsync(ship, cells: [new CellTarget(target.X, target.Y)]);
+        }
+    }
+
+    private async Task SubmitLinePowerUpAsync()
+    {
+        if (_pendingPowerUp is not { } ship || _pendingOrientation is not { } orientation || _pendingIndex is not { } index)
+        {
+            return;
+        }
+
+        await SubmitPowerUpAsync(ship, orientation: orientation, index: index, edge: _pendingEdge);
+    }
+
+    private async Task SubmitPowerUpAsync(
+        ShipStatusDto ship,
+        Orientation? orientation = null,
+        int? index = null,
+        Edge? edge = null,
+        IReadOnlyList<CellTarget>? cells = null)
+    {
+        var request = new UsePowerUpRequest(ship.Name, orientation, index, edge, cells);
+        _pendingPowerUp = null;
+        _pendingCells.Clear();
+        await Session.UsePowerUpAsync(request);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += StateHasChanged;
@@ -96,11 +222,6 @@ else
             await Session.LoadGameAsync(GameId);
         }
         Session.StartPolling();
-    }
-
-    private async Task HandleFireAsync((int X, int Y) target)
-    {
-        await Session.FireShotAsync(target.X, target.Y);
     }
 
     private async Task HandleDeployAsync(IReadOnlyList<PlaceShipRequest> ships)

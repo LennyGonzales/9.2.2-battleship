@@ -27,6 +27,7 @@
     [Parameter] public bool Interactive { get; set; }
     [Parameter] public EventCallback<(int X, int Y)> OnCellClick { get; set; }
     [Parameter] public string Title { get; set; } = "";
+    [Parameter] public Func<VisibleCellState, bool>? TargetPredicate { get; set; }
 
     private static string CellClass(VisibleCellState state) => state switch
     {
@@ -40,7 +41,9 @@
         _ => "",
     };
 
-    private static bool IsTargetable(VisibleCellState state) => state == VisibleCellState.Unknown;
+    private bool IsTargetable(VisibleCellState state) => (TargetPredicate ?? DefaultTargetPredicate)(state);
+
+    private static bool DefaultTargetPredicate(VisibleCellState state) => state == VisibleCellState.Unknown;
 
     private async Task HandleClickAsync(CellDto cell)
     {

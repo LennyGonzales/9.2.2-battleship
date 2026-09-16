@@ -4,22 +4,32 @@
         @foreach (var entry in History)
         {
             <li class="shot-log__entry">
-                <span class="shot-log__side @(IsMine(entry.Shooter) ? "" : "shot-log__side--enemy")">
-                    @SideLabel(entry.Shooter)
-                </span>
-                @FormatOutcome(entry.Shot)
+                @if (entry.Shot is { } shot)
+                {
+                    <span class="shot-log__side @(IsMine(shot.Shooter) ? "" : "shot-log__side--enemy")">
+                        @SideLabel(shot.Shooter)
+                    </span>
+                    @FormatOutcome(shot.Shot)
+                }
+                else if (entry.PowerUp is { } powerUp)
+                {
+                    <span class="shot-log__side @(IsMine(powerUp.Actor) ? "" : "shot-log__side--enemy")">
+                        @SideLabel(powerUp.Actor)
+                    </span>
+                    @FormatPowerUp(powerUp)
+                }
             </li>
         }
     </ol>
 </div>
 
 @code {
-    [Parameter, EditorRequired] public required IReadOnlyList<ShotResultDto> History { get; set; }
+    [Parameter, EditorRequired] public required IReadOnlyList<TurnLogEntry> History { get; set; }
 
-    private static bool IsMine(PlayerSide shooter) =>
-        shooter is PlayerSide.Player or PlayerSide.Player1;
+    private static bool IsMine(PlayerSide side) =>
+        side is PlayerSide.Player or PlayerSide.Player1;
 
-    private static string SideLabel(PlayerSide shooter) => shooter switch
+    private static string SideLabel(PlayerSide side) => side switch
     {
         PlayerSide.Player => "VOUS",
         PlayerSide.Computer => "ENNEMI",
@@ -40,4 +50,16 @@
             _ => coord,
         };
     }
+
+    private static string FormatPowerUp(PowerUpResultDto powerUp) => powerUp.Type switch
+    {
+        PowerUpType.Recon when powerUp.Recon is { } recon =>
+            $"{powerUp.ShipName} — reconnaissance {(recon.Orientation == Orientation.Row ? "ligne" : "colonne")} {recon.Index + 1} : {(recon.HasContact ? "contact" : "rien")}",
+        PowerUpType.Torpedo when powerUp.Torpedo is { } torpedo => $"{powerUp.ShipName} — torpille : {FormatOutcome(torpedo)}",
+        PowerUpType.Torpedo => $"{powerUp.ShipName} — torpille : rien touche",
+        PowerUpType.TwinStrike or PowerUpType.DoubleStrike when powerUp.Cells is { } cells =>
+            $"{powerUp.ShipName} — {string.Join(", ", cells.Select(FormatOutcome))}",
+        PowerUpType.Decoy => $"{powerUp.ShipName} — leurre pose",
+        _ => powerUp.ShipName,
+    };
 }

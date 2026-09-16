@@ -1,0 +1,29 @@
+@* BattleShip.App/Shared/PowerUpBar.razor *@
+<div class="power-up-bar radar-panel">
+    <header class="hud-label">Power-ups</header>
+    <div class="power-up-bar__buttons">
+        @foreach (var ship in Ships.Where(s => !s.IsSunk && !s.PowerUpUsed))
+        {
+            <button type="button" class="btn-brass" disabled="@(!Interactive)"
+                    @onclick="() => OnSelect.InvokeAsync(ship)">
+                @ship.Name (@Label(ship.PowerUpType))
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required IReadOnlyList<ShipStatusDto> Ships { get; set; }
+    [Parameter] public bool Interactive { get; set; }
+    [Parameter] public EventCallback<ShipStatusDto> OnSelect { get; set; }
+
+    private static string Label(PowerUpType type) => type switch
+    {
+        PowerUpType.Recon => "Reconnaissance",
+        PowerUpType.Torpedo => "Torpille",
+        PowerUpType.TwinStrike => "Tir jumele",
+        PowerUpType.Decoy => "Leurre",
+        PowerUpType.DoubleStrike => "Double frappe",
+        _ => type.ToString(),
+    };
+}
