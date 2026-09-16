@@ -31,7 +31,7 @@ Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `Gam
 
 - Le front devra enchaîner `POST /api/games` → placement local → `POST /api/games/{id}/fleet` → `GET /api/games/{id}/board/player`
 - La validation est explicite côté API (`CreateGameRequestValidator`), pas dans le domaine
-- Les statistiques de partie restent hors REST (service gRPC `GameStats`, ADR 0004 à venir)
+- Les statistiques de partie restent hors REST (service gRPC `GameStats`, voir [ADR 0004](0004-echange-grpc.md))
 - Persistance en mémoire (`InMemoryGameRepository`) suffisante pour le TP
 
 ## Vérification et réexamen

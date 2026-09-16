@@ -26,7 +26,7 @@ Jeu de **bataille navale en solo contre l'ordinateur** : le joueur crée une par
 | P0 | `POST /api/games/{id}/shots` (tir joueur + réponse ordinateur) | À faire |
 | P0 | `GET /api/games/{id}/board/player` et `/board/opponent` | À faire |
 | P0 | Front Blazor (création partie, grilles, tir) | À faire |
-| P0 | gRPC-Web `GameStats` + validateur | À faire |
+| P0 | gRPC-Web `GameStats` + validateur (API) | Fait |
 | P1 | Stratégie de l'ordinateur selon `Difficulty` (`DifficultyComputerOpponent`) | Fait |
 | P1 | Fondation PvP (`GameMode`, join, tokens) — voir ADR 0006 | Fait |
 | P1 | `POST /shots` et `GET /board/*` en PvE et PvP | À faire |
@@ -74,7 +74,7 @@ CORS : origine `http://localhost:8081` autorisée vers l'API.
 | [0006](docs/adr/0006-modes-de-jeu.md) | Modes PvE / PvP, tokens, join | Accepté |
 | 0001 | Découpage couches Models / API / App | À rédiger |
 | 0002 | Stockage InMemory (alternatives : fichier, DB) | À rédiger |
-| 0004 | Opération gRPC `GameStats` | À rédiger |
+| [0004](docs/adr/0004-echange-grpc.md) | Opération gRPC `GameStats` | Accepté |
 
 Décisions clés déjà actées : persistance InMemory en singleton ; validation FluentValidation côté API ; dual-mode **VsComputer** (défaut) / **VsPlayer** ; `GameDto` sans positions de navires ni tokens.
 
@@ -89,7 +89,7 @@ Décisions clés déjà actées : persistance InMemory en singleton ; validation
 - Parties perdues au redémarrage du conteneur API (InMemory).
 - Développement sur iCloud Drive : risque de lenteur ou fichiers manquants sur `obj/`/`bin/` (ignorés par git).
 - `Difficulty` exploité par `DifficultyComputerOpponent` (Easy / Normal / Hard) ; non exposée dans `GameDto`.
-- Front Blazor et gRPC encore au stade template.
+- Service gRPC `GameStats` opérationnel côté API ; client Blazor gRPC-Web à brancher.
 
 ### Arbitrages et évolution du périmètre
 

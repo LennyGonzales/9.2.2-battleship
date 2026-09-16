@@ -103,4 +103,23 @@ curl -i http://localhost:8080/api/games/$ID
 
 Les routes `shots` et `board/*` utiliseront le header `X-Player-Token` en PvP (à implémenter).
 
-Les statistiques de partie passent par gRPC-Web (non implémenté à ce stade).
+## Stats gRPC — `GameStats.GetGameStats`
+
+Les statistiques de partie sont exposées via gRPC-Web (hors REST). Contrat : [`Protos/battleship.proto`](Protos/battleship.proto).
+
+```bash
+# Lancer l'API seule
+docker compose up --build -d api
+
+# Créer une partie et placer la flotte
+ID=$(curl -s -X POST http://localhost:8080/api/games -H "Content-Type: application/json" -d '{}' | jq -r .id)
+curl -s -X POST http://localhost:8080/api/games/$ID/fleet \
+  -H "Content-Type: application/json" \
+  -d '{"ships":[{"name":"Porte-avions","x":0,"y":0,"horizontal":true},{"name":"Croiseur","x":0,"y":1,"horizontal":true},{"name":"Contre-torpilleur","x":0,"y":2,"horizontal":true},{"name":"Sous-marin","x":0,"y":3,"horizontal":true},{"name":"Torpilleur","x":0,"y":4,"horizontal":true}]}'
+
+# Interroger les stats (grpcurl requis)
+grpcurl -plaintext -d "{\"game_id\":\"$ID\"}" \
+  localhost:8080 battleship.GameStats/GetGameStats
+```
+
+Erreurs attendues : `InvalidArgument` (GUID invalide), `NotFound` (partie inconnue).

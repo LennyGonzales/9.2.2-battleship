@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option csharp_namespace = "BattleShip.Grpc";
+
+package battleship;
+
+service GameStats {
+  rpc GetGameStats (GameStatsQuery) returns (GameStatsReply);
+}
+
+message GameStatsQuery {
+  string game_id = 1;
+}
+
+message GameStatsReply {
+  string game_id = 1;
+  int32 player_shots = 2;
+  int32 computer_shots = 3;
+  int32 player_hits = 4;
+  int32 computer_hits = 5;
+  string status = 6;
+}
