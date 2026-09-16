@@ -155,9 +155,11 @@ else
     private void SelectPowerUp(ShipStatusDto ship)
     {
         _pendingPowerUp = ship;
-        _pendingOrientation = null;
+        _pendingOrientation = ship.PowerUpType is PowerUpType.Recon or PowerUpType.Torpedo
+            ? Orientation.Row
+            : null;
         _pendingIndex = null;
-        _pendingEdge = null;
+        _pendingEdge = ship.PowerUpType == PowerUpType.Torpedo ? Edge.Low : null;
         _pendingCells.Clear();
     }
 
