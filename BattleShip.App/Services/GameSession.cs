@@ -199,6 +199,11 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
             return;
         }
 
+        if (Game.Mode == GameMode.VsPlayer && string.IsNullOrWhiteSpace(PlayerToken))
+        {
+            return;
+        }
+
         PlayerBoard = await client.GetPlayerBoardAsync(Game.Id, PlayerToken);
 
         if (Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
