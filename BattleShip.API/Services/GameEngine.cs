@@ -161,6 +161,117 @@ public sealed class GameEngine(
         return new ShotTurnResult(resolution, expectedShooter, game.Status);
     }
 
+    public async Task<PowerUpTurnResult> UsePowerUpAsync(
+        Guid gameId,
+        Participant? caller,
+        UsePowerUpRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var game = await repository.GetByIdAsync(gameId, cancellationToken)
+            ?? throw new GameNotFoundException();
+
+        if (game.IsFinished() || game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
+            throw new GameConflictException();
+
+        var expectedShooter = GetExpectedShooter(game);
+        ValidateCaller(game, caller, expectedShooter);
+
+        var ownBoard = game.GetBoard(expectedShooter);
+        var ship = ownBoard.Ships.FirstOrDefault(s => s.Name == request.ShipName)
+            ?? throw new GameConflictException("Navire inconnu.");
+
+        if (!ship.CanUsePowerUp)
+            throw new GameConflictException("Power-up indisponible pour ce navire.");
+
+        var opponentBoard = game.GetOpponentBoard(expectedShooter);
+        var content = ship.PowerUpType switch
+        {
+            PowerUpType.Recon => ResolveRecon(opponentBoard, request),
+            PowerUpType.Torpedo => ResolveTorpedo(opponentBoard, request),
+            PowerUpType.TwinStrike => ResolveMultiStrike(opponentBoard, request, requireAdjacent: true),
+            PowerUpType.DoubleStrike => ResolveMultiStrike(opponentBoard, request, requireAdjacent: false),
+            PowerUpType.Decoy => ResolveDecoy(ownBoard, ship, request),
+            _ => throw new InvalidOperationException("Power-up inconnu.")
+        };
+
+        ship.MarkPowerUpUsed();
+        game.Status = ResolveStatusAfterShot(game, expectedShooter, opponentBoard);
+        game.ActiveParticipant = GetActiveParticipantForStatus(game.Status);
+
+        await repository.SaveAsync(game, cancellationToken);
+
+        return new PowerUpTurnResult(
+            ship.Name, ship.PowerUpType, expectedShooter, game.Status,
+            content.Recon, content.Torpedo, content.Cells);
+    }
+
+    private readonly record struct PowerUpContent(
+        ReconOutcome? Recon,
+        ShotResolution? Torpedo,
+        IReadOnlyList<ShotResolution>? Cells);
+
+    private static (Orientation Orientation, int Index) RequireLine(UsePowerUpRequest request)
+    {
+        if (request.Orientation is not { } orientation || request.Index is not { } index)
+            throw new GameConflictException("Ligne ou colonne requise pour ce power-up.");
+        return (orientation, index);
+    }
+
+    private static PowerUpContent ResolveRecon(Board opponentBoard, UsePowerUpRequest request)
+    {
+        var (orientation, index) = RequireLine(request);
+        var hasContact = opponentBoard.ScanLine(orientation, index);
+        return new PowerUpContent(new ReconOutcome(orientation, index, hasContact), null, null);
+    }
+
+    private static PowerUpContent ResolveTorpedo(Board opponentBoard, UsePowerUpRequest request)
+    {
+        var (orientation, index) = RequireLine(request);
+        var entryEdge = request.EntryEdge ?? throw new GameConflictException("Bord d'entree requis pour la torpille.");
+        var resolution = opponentBoard.FireTorpedo(orientation, index, entryEdge);
+        return new PowerUpContent(null, resolution, null);
+    }
+
+    private static PowerUpContent ResolveMultiStrike(Board opponentBoard, UsePowerUpRequest request, bool requireAdjacent)
+    {
+        var cells = request.Cells;
+        if (cells is not { Count: 2 })
+            throw new GameConflictException("Deux cases sont requises pour ce power-up.");
+
+        var (a, b) = (cells[0], cells[1]);
+        if (a.X == b.X && a.Y == b.Y)
+            throw new GameConflictException("Les deux cases doivent etre distinctes.");
+
+        if (requireAdjacent && Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) != 1)
+            throw new GameConflictException("Les deux cases doivent etre adjacentes.");
+
+        foreach (var cell in cells)
+        {
+            if (!opponentBoard.IsWithinBounds(cell.X, cell.Y))
+                throw new ShotOutOfBoundsException(cell.X, cell.Y);
+            if (opponentBoard.IsAlreadyTargeted(cell.X, cell.Y))
+                throw new GameConflictException("Cette case a deja ete ciblee.");
+        }
+
+        var results = cells.Select(c => opponentBoard.ResolveShot(c.X, c.Y)).ToList();
+        return new PowerUpContent(null, null, results);
+    }
+
+    private static PowerUpContent ResolveDecoy(Board ownBoard, Ship ship, UsePowerUpRequest request)
+    {
+        if (request.Cells is not { Count: 1 })
+            throw new GameConflictException("Une case est requise pour le leurre.");
+
+        var target = request.Cells[0];
+        if (!ship.Cells.Any(c => Math.Abs(c.X - target.X) + Math.Abs(c.Y - target.Y) == 1))
+            throw new GameConflictException("Le leurre doit etre adjacent au contre-torpilleur.");
+
+        if (!ownBoard.TryPlaceDecoy(target.X, target.Y))
+            throw new GameConflictException("Impossible de placer le leurre ici.");
+
+        return new PowerUpContent(null, null, null);
+    }
+
     private static void ValidateFleetPlacementAllowed(Game game, Participant? caller)
     {
         if (game.Mode == GameMode.VsComputer)
