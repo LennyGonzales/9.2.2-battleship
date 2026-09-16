@@ -6,7 +6,7 @@ namespace BattleShip.App.Services;
 
 public sealed class GameSession(IGameApiClient client, IJSRuntime js)
 {
-    private readonly List<ShotResultDto> _history = [];
+    private readonly List<TurnLogEntry> _history = [];
 
     public GameDto? Game { get; private set; }
     public BoardDto? PlayerBoard { get; private set; }
@@ -15,7 +15,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     public bool IsBusy { get; private set; }
     public string? PlayerToken { get; private set; }
     public PlayerSide? MySide { get; private set; }
-    public IReadOnlyList<ShotResultDto> History => _history;
+    public IReadOnlyList<TurnLogEntry> History => _history;
 
     public bool CanFire => !IsBusy && Game is not null && MySide is not null && Game.CurrentTurn == MySide;
     public bool AwaitingOpponent => Game?.Status == GameStatus.Waiting;
@@ -151,17 +151,48 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
         }
 
         var result = await client.FireShotAsync(Game.Id, new ShotRequest(x, y), PlayerToken);
-        _history.Add(result);
+        _history.Add(TurnLogEntry.FromShot(result));
 
-        if (result.Status is GameStatus.ComputerTurn)
+        if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
         {
-            var computerResult = await client.FireShotAsync(Game.Id, new ShotRequest(null, null), PlayerToken);
-            _history.Add(computerResult);
+            await PlayComputerTurnAsync();
         }
 
         Game = await client.GetGameAsync(Game.Id);
         await RefreshBoardsAsync();
     });
+
+    public Task UsePowerUpAsync(UsePowerUpRequest request) => RunAsync(async () =>
+    {
+        if (Game is null)
+        {
+            return;
+        }
+
+        var result = await client.UsePowerUpAsync(Game.Id, request, PlayerToken);
+        _history.Add(TurnLogEntry.FromPowerUp(result));
+
+        if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
+        {
+            await PlayComputerTurnAsync();
+        }
+
+        Game = await client.GetGameAsync(Game.Id);
+        await RefreshBoardsAsync();
+    });
+
+    private async Task PlayComputerTurnAsync()
+    {
+        if (Game is null)
+        {
+            return;
+        }
+
+        var computerResult = await client.PlayComputerTurnAsync(Game.Id, PlayerToken);
+        _history.Add(computerResult.UsedPowerUp
+            ? TurnLogEntry.FromPowerUp(computerResult.PowerUp!)
+            : TurnLogEntry.FromShot(computerResult.Shot!));
+    }
 
     private async Task RefreshBoardsAsync()
     {
