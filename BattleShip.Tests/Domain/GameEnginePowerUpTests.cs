@@ -233,6 +233,32 @@ public class GameEnginePowerUpTests
         Assert.Equal(0, saved.ShotCount);
     }
 
+    [Fact]
+    public async Task UsePowerUpAsync_Recon_IndexOutOfRange_ThrowsShotOutOfBounds()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var request = new UsePowerUpRequest("Porte-avions", Orientation.Row, game.BoardSize, null, null);
+
+        await Assert.ThrowsAsync<ShotOutOfBoundsException>(() =>
+            engine.UsePowerUpAsync(game.Id, Participant.Player1, request));
+    }
+
+    [Fact]
+    public async Task UsePowerUpAsync_Torpedo_IndexOutOfRange_ThrowsShotOutOfBounds()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var request = new UsePowerUpRequest("Torpilleur", Orientation.Row, game.BoardSize, Edge.Low, null);
+
+        await Assert.ThrowsAsync<ShotOutOfBoundsException>(() =>
+            engine.UsePowerUpAsync(game.Id, Participant.Player1, request));
+    }
+
     private static async Task<Game> CreateReadyPveGameAsync(GameEngine engine)
     {
         var game = await engine.CreateGameAsync(null);

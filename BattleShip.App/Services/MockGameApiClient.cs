@@ -110,6 +110,10 @@ public sealed class MockGameApiClient : IGameApiClient
         }
 
         var result = ResolvePowerUp(game, game.PlayerBoard, game.ComputerBoard!, request, PlayerSide.Player);
+
+        var shotsResolved = (result.Torpedo is not null ? 1 : 0) + (result.Cells?.Count ?? 0);
+        game.ShotCount += shotsResolved;
+
         game.Status = game.ComputerBoard!.AreAllShipsSunk() ? GameStatus.PlayerWon : GameStatus.ComputerTurn;
 
         return Task.FromResult(result with { Status = game.Status });
@@ -352,12 +356,20 @@ public sealed class MockGameApiClient : IGameApiClient
             case PowerUpType.Recon:
             {
                 var (orientation, index) = RequireLine(request);
+                if (index < 0 || index >= opponentBoard.Size)
+                {
+                    throw ValidationError("Ligne ou colonne hors de la grille.");
+                }
                 recon = new ReconResultDto(orientation, index, opponentBoard.ScanLine(orientation, index));
                 break;
             }
             case PowerUpType.Torpedo:
             {
                 var (orientation, index) = RequireLine(request);
+                if (index < 0 || index >= opponentBoard.Size)
+                {
+                    throw ValidationError("Ligne ou colonne hors de la grille.");
+                }
                 var entryEdge = request.EntryEdge ?? throw ValidationError("Bord d'entree requis pour la torpille.");
                 var resolution = opponentBoard.FireTorpedo(orientation, index, entryEdge);
                 torpedo = resolution is null ? null : ToOutcomeDto(resolution);

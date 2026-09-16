@@ -176,6 +176,41 @@ public sealed class GameEngine(
         var expectedShooter = GetExpectedShooter(game);
         ValidateCaller(game, caller, expectedShooter);
 
+        // A client hitting this endpoint directly can never legitimately be resolved as Player2 in a
+        // VsComputer game (there is no Player2 token to present), so this is only ever a client trying
+        // to puppet the computer's power-up choice. The computer's own move is played internally via
+        // ResolvePowerUpForShooterAsync (see PlayComputerTurnAsync), which never goes through this guard.
+        if (game.Mode == GameMode.VsComputer && expectedShooter == Participant.Player2)
+            throw new GameConflictException("Le power-up de l'ordinateur ne peut pas etre declenche par un client.");
+
+        return await ResolvePowerUpForShooterAsync(game, expectedShooter, request, cancellationToken);
+    }
+
+    public async Task<ComputerTurnResult> PlayComputerTurnAsync(Guid gameId, CancellationToken cancellationToken = default)
+    {
+        var game = await repository.GetByIdAsync(gameId, cancellationToken)
+            ?? throw new GameNotFoundException();
+
+        if (game.Mode != GameMode.VsComputer || game.Status != GameStatus.ComputerTurn)
+            throw new GameConflictException();
+
+        var request = computerOpponent.ChoosePowerUp(game);
+        if (request is not null)
+        {
+            var powerUpResult = await ResolvePowerUpForShooterAsync(game, Participant.Player2, request, cancellationToken);
+            return new ComputerTurnResult(true, null, powerUpResult);
+        }
+
+        var shotResult = await FireShotAsync(gameId, null, null, null, cancellationToken);
+        return new ComputerTurnResult(false, shotResult, null);
+    }
+
+    private async Task<PowerUpTurnResult> ResolvePowerUpForShooterAsync(
+        Game game,
+        Participant expectedShooter,
+        UsePowerUpRequest request,
+        CancellationToken cancellationToken)
+    {
         var ownBoard = game.GetBoard(expectedShooter);
         var ship = ownBoard.Ships.FirstOrDefault(s => s.Name == request.ShipName)
             ?? throw new GameConflictException("Navire inconnu.");
@@ -210,25 +245,6 @@ public sealed class GameEngine(
             content.Recon, content.Torpedo, content.Cells);
     }
 
-    public async Task<ComputerTurnResult> PlayComputerTurnAsync(Guid gameId, CancellationToken cancellationToken = default)
-    {
-        var game = await repository.GetByIdAsync(gameId, cancellationToken)
-            ?? throw new GameNotFoundException();
-
-        if (game.Mode != GameMode.VsComputer || game.Status != GameStatus.ComputerTurn)
-            throw new GameConflictException();
-
-        var request = computerOpponent.ChoosePowerUp(game);
-        if (request is not null)
-        {
-            var powerUpResult = await UsePowerUpAsync(gameId, Participant.Player2, request, cancellationToken);
-            return new ComputerTurnResult(true, null, powerUpResult);
-        }
-
-        var shotResult = await FireShotAsync(gameId, null, null, null, cancellationToken);
-        return new ComputerTurnResult(false, shotResult, null);
-    }
-
     private readonly record struct PowerUpContent(
         ReconOutcome? Recon,
         ShotResolution? Torpedo,
@@ -244,6 +260,9 @@ public sealed class GameEngine(
     private static PowerUpContent ResolveRecon(Board opponentBoard, UsePowerUpRequest request)
     {
         var (orientation, index) = RequireLine(request);
+        if (index < 0 || index >= opponentBoard.Size)
+            throw new ShotOutOfBoundsException(index, index);
+
         var hasContact = opponentBoard.ScanLine(orientation, index);
         return new PowerUpContent(new ReconOutcome(orientation, index, hasContact), null, null);
     }
@@ -251,6 +270,9 @@ public sealed class GameEngine(
     private static PowerUpContent ResolveTorpedo(Board opponentBoard, UsePowerUpRequest request)
     {
         var (orientation, index) = RequireLine(request);
+        if (index < 0 || index >= opponentBoard.Size)
+            throw new ShotOutOfBoundsException(index, index);
+
         var entryEdge = request.EntryEdge ?? throw new GameConflictException("Bord d'entree requis pour la torpille.");
         var resolution = opponentBoard.FireTorpedo(orientation, index, entryEdge);
         return new PowerUpContent(null, resolution, null);

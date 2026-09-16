@@ -134,7 +134,8 @@ public sealed class Board
         {
             var (x, y) = orientation == Orientation.Row ? (i, index) : (index, i);
             if (_cells[x, y] is CellState.Ship or CellState.Hit or CellState.Sunk
-                or CellState.Obstacle or CellState.ObstacleHit)
+                or CellState.Obstacle or CellState.ObstacleHit
+                or CellState.Decoy or CellState.DecoyHit)
             {
                 return true;
             }

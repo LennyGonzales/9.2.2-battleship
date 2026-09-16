@@ -82,6 +82,18 @@ public class BoardPowerUpTests
     }
 
     [Fact]
+    public void ScanLine_RowWithOnlyDecoy_ReturnsTrue()
+    {
+        var board = new Board(10);
+        var ship = new Ship { Name = "Contre-torpilleur", Length = 3 };
+        board.PlaceShip(ship, 0, 0, horizontal: true);
+        Assert.True(board.TryPlaceDecoy(0, 1));
+
+        Assert.True(board.ScanLine(Orientation.Row, 1));
+        Assert.False(board.ScanLine(Orientation.Row, 2));
+    }
+
+    [Fact]
     public void ScanLine_ColumnWithObstacle_ReturnsTrue()
     {
         var board = new Board(10);

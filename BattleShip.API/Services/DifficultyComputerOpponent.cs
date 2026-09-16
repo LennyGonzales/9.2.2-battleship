@@ -142,7 +142,7 @@ public sealed class DifficultyComputerOpponent(Random random) : IComputerOpponen
         {
             for (var y = 0; y < board.Size; y++)
             {
-                if (board.GetCell(x, y) != CellState.Hit)
+                if (board.GetCell(x, y) is not (CellState.Hit or CellState.DecoyHit))
                     continue;
 
                 foreach (var neighbor in GetNeighbors(x, y))

@@ -60,6 +60,9 @@ Option 3 retenue pour l'emplacement de la logique, et endpoint unique retenu pou
 
 - `Ship` gagne `PowerUpType` et `PowerUpUsed` ; un power-up n'est utilisable que si
   `!IsSunk && !PowerUpUsed`.
+- `Ship.MarkPowerUpUsed()` est `public` (contrairement à `MarkSunk()`, resté `internal`) : c'est une
+  déviation délibérée, requise car `GameEngine` (assembly `BattleShip.API`) appelle cette méthode
+  sur un `Ship` défini dans `BattleShip.Models`, un assembly différent — `internal` ne suffirait pas.
 - `swagger.yaml` gagne la route `POST /api/games/{id}/powerups`, les DTO `UsePowerUpRequest` /
   `PowerUpResultDto` / `ReconResultDto`, et les enums `PowerUpType`/`Orientation`/`Edge`.
 - `UsePowerUpAsync` réutilise la résolution de tour existante (`ResolveStatusAfterShot`,

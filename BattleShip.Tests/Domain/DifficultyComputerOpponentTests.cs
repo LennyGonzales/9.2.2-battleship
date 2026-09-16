@@ -69,6 +69,22 @@ public class DifficultyComputerOpponentTests
     }
 
     [Fact]
+    public void Hard_PicksAdjacentToDecoyHit()
+    {
+        var board = new Board(5);
+        var ship = new Ship { Name = "Contre-torpilleur", Length = 3 };
+        board.PlaceShip(ship, 0, 0, horizontal: true);
+        Assert.True(board.TryPlaceDecoy(0, 1));
+        board.ResolveShot(0, 1);
+        Assert.Equal(CellState.DecoyHit, board.GetCell(0, 1));
+
+        var game = CreateGame(Difficulty.Hard, board);
+        var shot = _opponent.ChooseShot(game);
+
+        Assert.True(IsAdjacentTo(shot, 0, 1));
+    }
+
+    [Fact]
     public void Hard_IgnoresSunkCells_AndUsesParity()
     {
         var board = new Board(5);

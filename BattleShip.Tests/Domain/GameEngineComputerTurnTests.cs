@@ -51,6 +51,29 @@ public class GameEngineComputerTurnTests
     }
 
     [Fact]
+    public async Task UsePowerUpAsync_CalledDirectlyDuringComputerTurn_ThrowsConflict()
+    {
+        var repository = new InMemoryGameRepository();
+        var opponent = new NeverUsesPowerUpOpponent(1, 1);
+        var engine = new GameEngine(
+            repository, new FleetPlacer(new Random(1)), new PlayerTokenService(),
+            opponent, new Random(1), ObstacleGenerationOptions.None);
+
+        var game = await engine.CreateGameAsync(null);
+        await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
+        await engine.FireShotAsync(game.Id, Participant.Player1, 9, 9);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(GameStatus.ComputerTurn, saved.Status);
+
+        var request = new UsePowerUpRequest("Porte-avions", Orientation.Row, 0, null, null);
+
+        await Assert.ThrowsAsync<GameConflictException>(() =>
+            engine.UsePowerUpAsync(game.Id, Participant.Player2, request));
+    }
+
+    [Fact]
     public async Task PlayComputerTurnAsync_WrongStatus_ThrowsConflict()
     {
         var repository = new InMemoryGameRepository();
