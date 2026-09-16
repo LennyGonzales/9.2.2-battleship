@@ -13,6 +13,8 @@ Projet scolaire C# / ASP.NET Core (.NET 10).
 docker compose up --build
 ```
 
+Sur Mac Apple Silicon, les services `api`, `app` et `sdk` sont configurés en `linux/amd64` dans `docker-compose.yml` (contournement d'un crash `protoc` gRPC en ARM dans Docker).
+
 | Service | URL |
 |---------|-----|
 | Front Blazor | http://localhost:8081 |
@@ -123,3 +125,16 @@ grpcurl -plaintext -d "{\"game_id\":\"$ID\"}" \
 ```
 
 Erreurs attendues : `InvalidArgument` (GUID invalide), `NotFound` (partie inconnue).
+
+### Depuis le navigateur (Blazor)
+
+```bash
+docker compose up --build
+```
+
+1. Ouvrir http://localhost:8081
+2. Créer une partie PvE, placer la flotte, tirer sur la grille adverse
+3. Le panneau HUD affiche les compteurs gRPC (tirs/touches des deux côtés)
+4. DevTools → Network : requête gRPC-Web vers `localhost:8080`
+
+Les stats gRPC ne s'affichent pas en mode mock (`UseMockApi: true`).

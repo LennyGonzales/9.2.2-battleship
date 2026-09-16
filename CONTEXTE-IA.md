@@ -5,7 +5,7 @@
 - .NET 10 stable ; SDK conteneurisé via `global.json` et service Docker `sdk` (pas de SDK local).
 - Quatre projets : `BattleShip.Models`, `BattleShip.API` (Minimal API), `BattleShip.App` (Blazor WASM), `BattleShip.Tests` (xUnit).
 - FluentValidation sur les entrées serveur, avec appel explicite à `ValidateAsync` dans les endpoints.
-- Au moins un échange gRPC-Web fonctionnel depuis le navigateur (à implémenter).
+- Au moins un échange gRPC-Web fonctionnel depuis le navigateur (Fait ; hors mode `UseMockApi`).
 - Règles vérifiées côté serveur ; positions adverses non découvertes jamais exposées dans les DTO.
 - Livrables : `README.md`, `PROMPTS.md`, `REVUE-IA.md` (3 revues minimum), `docs/adr/`, historique Git relu.
 - Projet évalué au-delà du socle : ambition, pertinence et qualité des extensions retenues.
@@ -26,7 +26,7 @@ Jeu de **bataille navale en solo contre l'ordinateur** : le joueur crée une par
 | P0 | `POST /api/games/{id}/shots` (tir joueur + réponse ordinateur) | À faire |
 | P0 | `GET /api/games/{id}/board/player` et `/board/opponent` | À faire |
 | P0 | Front Blazor (création partie, grilles, tir) | À faire |
-| P0 | gRPC-Web `GameStats` + validateur (API) | Fait |
+| P0 | gRPC-Web `GameStats` (API + client Blazor) | Fait |
 | P1 | Stratégie de l'ordinateur selon `Difficulty` (`DifficultyComputerOpponent`) | Fait |
 | P1 | Fondation PvP (`GameMode`, join, tokens) — voir ADR 0006 | Fait |
 | P1 | `POST /shots` et `GET /board/*` en PvE et PvP | À faire |
@@ -36,7 +36,7 @@ Jeu de **bataille navale en solo contre l'ordinateur** : le joueur crée une par
 
 - **`BattleShip.Models`** : domaine (`Game`, `Board`, `Ship`, …), contrats DTO (`GameDto`, `CreateGameRequest`, …), interfaces (`IGameEngine`, `IGameRepository`).
 - **`BattleShip.API`** : endpoints Minimal API, services (`GameEngine`, `InMemoryGameRepository`, `GameMapper`), validation FluentValidation.
-- **`BattleShip.App`** : Blazor WASM, consomme REST (+ gRPC-Web plus tard).
+- **`BattleShip.App`** : Blazor WASM, consomme REST + gRPC-Web (`GrpcGameStatsClient`, panneau `StatusConsole`).
 - **`BattleShip.Tests`** : validateurs, domaine, intégration API (`WebApplicationFactory`).
 - Contrat REST source de vérité : [`swagger.yaml`](swagger.yaml). OpenAPI généré : `/openapi/v1.json` (contrôle croisé, pas de remplacement du swagger versionné).
 
@@ -89,7 +89,7 @@ Décisions clés déjà actées : persistance InMemory en singleton ; validation
 - Parties perdues au redémarrage du conteneur API (InMemory).
 - Développement sur iCloud Drive : risque de lenteur ou fichiers manquants sur `obj/`/`bin/` (ignorés par git).
 - `Difficulty` exploité par `DifficultyComputerOpponent` (Easy / Normal / Hard) ; non exposée dans `GameDto`.
-- Service gRPC `GameStats` opérationnel côté API ; client Blazor gRPC-Web à brancher.
+- Stats gRPC affichées dans `StatusConsole` en mode API réelle ; pas de stats gRPC en `UseMockApi`.
 
 ### Arbitrages et évolution du périmètre
 

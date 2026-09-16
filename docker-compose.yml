@@ -1,6 +1,7 @@
 services:
   sdk:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    platform: linux/amd64
     working_dir: /src
     volumes:
       - .:/src
@@ -8,6 +9,7 @@ services:
     profiles: [tools]
 
   api:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: BattleShip.API/Dockerfile
@@ -19,6 +21,7 @@ services:
       Cors__AllowedOrigins__0: http://localhost:8081
 
   app:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: BattleShip.App/Dockerfile
