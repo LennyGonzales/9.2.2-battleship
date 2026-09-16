@@ -10,6 +10,9 @@
     --br-radar: #39ff6a;
     --br-radar-dim: rgba(57, 255, 106, 0.25);
     --br-alert: #d1453b;
+    --br-sunk: #6b21a8;
+    --br-sunk-deep: #3b0764;
+    --br-sunk-glow: #c084fc;
     --br-text: #e7e4d8;
     --br-text-dim: #a9a693;
     --font-display: "Black Ops One", "Arial Narrow", system-ui, sans-serif;

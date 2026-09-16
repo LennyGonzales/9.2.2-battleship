@@ -32,5 +32,6 @@ else
     builder.Services.AddScoped<IGameStatsClient, GrpcGameStatsClient>();
 }
 
+builder.Services.AddScoped<SoundFx>();
 builder.Services.AddScoped<GameSession>();
 await builder.Build().RunAsync();
