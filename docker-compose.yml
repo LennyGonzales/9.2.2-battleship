@@ -1,6 +1,7 @@
 services:
   sdk:
     image: mcr.microsoft.com/dotnet/sdk:10.0
+    platform: linux/amd64
     working_dir: /src
     volumes:
       - .:/src
