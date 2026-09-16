@@ -22,6 +22,10 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
     public bool AwaitingOpponent => Game?.Status == GameStatus.Waiting;
     public bool CanJoin => Game is { Mode: GameMode.VsPlayer, Status: GameStatus.Waiting } && MySide is null;
     public bool IsPlacingFleet => Game?.Status == GameStatus.PlacingFleet;
+    public bool HasPlacedFleet { get; private set; }
+    public bool NeedsFleetPlacement => Game?.Status == GameStatus.PlacingFleet && !HasPlacedFleet;
+    public bool AwaitingOpponentFleet =>
+        Game is { Mode: GameMode.VsPlayer, Status: GameStatus.PlacingFleet } && HasPlacedFleet;
 
     public event Action? Changed;
 
@@ -98,6 +102,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
     public Task StartGameAsync(int boardSize, Difficulty difficulty, GameMode mode) => RunAsync(async () =>
     {
         _history.Clear();
+        HasPlacedFleet = false;
         var created = await client.CreateGameAsync(new CreateGameRequest(boardSize, difficulty, mode));
         Game = ToGameDto(created.Id, created.Mode, created.Status, created.CurrentTurn, created.BoardSize,
             created.ShotCount, created.CreatedAt);
@@ -110,6 +115,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
     public Task LoadGameAsync(Guid id) => RunAsync(async () =>
     {
         _history.Clear();
+        HasPlacedFleet = false;
         Game = await client.GetGameAsync(id);
         if (Game.Mode == GameMode.VsComputer)
         {
@@ -126,6 +132,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
 
     public Task JoinGameAsync(Guid id) => RunAsync(async () =>
     {
+        HasPlacedFleet = false;
         var joined = await client.JoinGameAsync(id);
         Game = ToGameDto(joined.Id, joined.Mode, joined.Status, joined.CurrentTurn, joined.BoardSize,
             joined.ShotCount, joined.CreatedAt);
@@ -206,12 +213,35 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
 
         PlayerBoard = await client.GetPlayerBoardAsync(Game.Id, PlayerToken);
 
+        SyncHasPlacedFleetFromBoard();
+
         if (Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
         {
             return;
         }
 
         OpponentBoard = await client.GetOpponentBoardAsync(Game.Id, PlayerToken);
+    }
+
+    private void SyncHasPlacedFleetFromBoard()
+    {
+        if (Game is not { Mode: GameMode.VsPlayer, Status: GameStatus.PlacingFleet })
+        {
+            return;
+        }
+
+        HasPlacedFleet = BoardHasCompleteFleet(PlayerBoard);
+    }
+
+    private static bool BoardHasCompleteFleet(BoardDto? board)
+    {
+        if (board is null)
+        {
+            return false;
+        }
+
+        var expectedShipCells = GameOptions.DefaultFleet.Sum(ship => ship.Length);
+        return board.Cells.Count(cell => cell.State == VisibleCellState.Ship) == expectedShipCells;
     }
 
     private async Task PersistTokenAsync()
