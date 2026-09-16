@@ -26,7 +26,7 @@ public sealed class Board
     public bool IsAlreadyTargeted(int x, int y)
     {
         var state = _cells[x, y];
-        return state is CellState.Miss or CellState.Hit or CellState.Sunk or CellState.ObstacleHit;
+        return state is CellState.Miss or CellState.Hit or CellState.Sunk or CellState.ObstacleHit or CellState.DecoyHit;
     }
 
     public bool AreAllShipsSunk() => _ships.Count > 0 && _ships.All(s => s.IsSunk);
@@ -61,6 +61,12 @@ public sealed class Board
 
         if (IsAlreadyTargeted(x, y))
             throw new InvalidOperationException($"La case ({x},{y}) a deja ete ciblee.");
+
+        if (_cells[x, y] == CellState.Decoy)
+        {
+            _cells[x, y] = CellState.DecoyHit;
+            return new ShotResolution(x, y, ShotOutcome.Hit, null);
+        }
 
         if (_cells[x, y] == CellState.Obstacle)
         {
@@ -105,6 +111,63 @@ public sealed class Board
             if (IsWithinBounds(x, y))
                 _cells[x, y] = CellState.Obstacle;
         }
+    }
+
+    public bool TryPlaceDecoy(int x, int y)
+    {
+        if (!IsWithinBounds(x, y) || _cells[x, y] != CellState.Empty)
+            return false;
+
+        if (!GetOrthogonalNeighbors(x, y).Any(n => _cells[n.X, n.Y] == CellState.Ship))
+            return false;
+
+        _cells[x, y] = CellState.Decoy;
+        return true;
+    }
+
+    public bool ScanLine(Orientation orientation, int index)
+    {
+        if (index < 0 || index >= Size)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        for (var i = 0; i < Size; i++)
+        {
+            var (x, y) = orientation == Orientation.Row ? (i, index) : (index, i);
+            if (_cells[x, y] is CellState.Ship or CellState.Hit or CellState.Sunk
+                or CellState.Obstacle or CellState.ObstacleHit)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public ShotResolution? FireTorpedo(Orientation orientation, int index, Edge entryEdge)
+    {
+        if (index < 0 || index >= Size)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var indices = Enumerable.Range(0, Size);
+        if (entryEdge == Edge.High)
+            indices = indices.Reverse();
+
+        foreach (var i in indices)
+        {
+            var (x, y) = orientation == Orientation.Row ? (i, index) : (index, i);
+            if (_cells[x, y] is CellState.Ship or CellState.Obstacle or CellState.Decoy)
+                return ResolveShot(x, y);
+        }
+
+        return null;
+    }
+
+    private IEnumerable<(int X, int Y)> GetOrthogonalNeighbors(int x, int y)
+    {
+        if (IsWithinBounds(x + 1, y)) yield return (x + 1, y);
+        if (IsWithinBounds(x - 1, y)) yield return (x - 1, y);
+        if (IsWithinBounds(x, y + 1)) yield return (x, y + 1);
+        if (IsWithinBounds(x, y - 1)) yield return (x, y - 1);
     }
 
     private void TryPlaceOneObstacle(int targetSize, Random rng)
