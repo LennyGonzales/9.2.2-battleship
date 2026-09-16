@@ -309,7 +309,11 @@ components:
 
     Difficulty:
       type: string
-      description: Strategie de l'adversaire
+      description: |
+        Strategie de tir de l'ordinateur en PvE (ignore en PvP).
+        Easy : tir aleatoire sur une case non jouee.
+        Normal : priorite aux cases du damier (x + y pair), sinon aleatoire.
+        Hard : chasse autour des cases touchees (Hit), puis Normal.
       enum: [Easy, Normal, Hard]
       default: Normal
 

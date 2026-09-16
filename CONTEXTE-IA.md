@@ -27,7 +27,7 @@ Jeu de **bataille navale en solo contre l'ordinateur** : le joueur crée une par
 | P0 | `GET /api/games/{id}/board/player` et `/board/opponent` | À faire |
 | P0 | Front Blazor (création partie, grilles, tir) | À faire |
 | P0 | gRPC-Web `GameStats` + validateur | À faire |
-| P1 | Stratégie de l'ordinateur selon `Difficulty` (au-delà du tir aléatoire) | Backlog |
+| P1 | Stratégie de l'ordinateur selon `Difficulty` (`DifficultyComputerOpponent`) | Fait |
 | P1 | Fondation PvP (`GameMode`, join, tokens) — voir ADR 0006 | Fait |
 | P1 | `POST /shots` et `GET /board/*` en PvE et PvP | À faire |
 | P2 | Sauvegarde fichier/DB, stats avancées | Backlog |
@@ -88,7 +88,7 @@ Décisions clés déjà actées : persistance InMemory en singleton ; validation
 **Limites connues** :
 - Parties perdues au redémarrage du conteneur API (InMemory).
 - Développement sur iCloud Drive : risque de lenteur ou fichiers manquants sur `obj/`/`bin/` (ignorés par git).
-- `Difficulty` stockée mais non exploitée par l'ordinateur tant que les tirs ne sont pas implémentés.
+- `Difficulty` exploité par `DifficultyComputerOpponent` (Easy / Normal / Hard) ; non exposée dans `GameDto`.
 - Front Blazor et gRPC encore au stade template.
 
 ### Arbitrages et évolution du périmètre

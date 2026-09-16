@@ -28,7 +28,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<IGameRepository, InMemoryGameRepository>();
 builder.Services.AddScoped<IGameEngine, GameEngine>();
-builder.Services.AddScoped<IComputerOpponent, RandomComputerOpponent>();
+builder.Services.AddScoped<IComputerOpponent, DifficultyComputerOpponent>();
 builder.Services.AddScoped<FleetPlacer>();
 builder.Services.AddSingleton<PlayerTokenService>();
 builder.Services.AddSingleton<ParticipantResolver>();

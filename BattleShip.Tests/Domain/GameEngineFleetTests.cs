@@ -85,5 +85,5 @@ public class GameEngineFleetTests
     }
 
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
-        new(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        new(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 }
