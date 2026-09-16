@@ -134,6 +134,105 @@ public class GameEnginePowerUpTests
             engine.UsePowerUpAsync(game.Id, Participant.Player1, request));
     }
 
+    [Fact]
+    public async Task UsePowerUpAsync_TwinStrike_IncrementsShotCountByTwo()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var request = new UsePowerUpRequest(
+            "Sous-marin", null, null, null, [new CellTarget(0, 0), new CellTarget(1, 0)]);
+        await engine.UsePowerUpAsync(game.Id, Participant.Player1, request);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(2, saved.ShotCount);
+    }
+
+    [Fact]
+    public async Task UsePowerUpAsync_Torpedo_Hit_IncrementsShotCountByOne()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = CreateBoardWithShip(10, "Torpilleur", 2, x: 5, y: 3, horizontal: true);
+        await repository.SaveAsync(saved);
+
+        var request = new UsePowerUpRequest("Torpilleur", Orientation.Row, 3, Edge.Low, null);
+        await engine.UsePowerUpAsync(game.Id, Participant.Player1, request);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(1, saved.ShotCount);
+    }
+
+    [Fact]
+    public async Task UsePowerUpAsync_Torpedo_EmptyLine_DoesNotIncrementShotCount()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = new Board(10);
+        await repository.SaveAsync(saved);
+
+        var request = new UsePowerUpRequest("Torpilleur", Orientation.Row, 3, Edge.Low, null);
+        var result = await engine.UsePowerUpAsync(game.Id, Participant.Player1, request);
+
+        Assert.Null(result.Torpedo);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(0, saved.ShotCount);
+    }
+
+    [Fact]
+    public async Task UsePowerUpAsync_Recon_DoesNotIncrementShotCount()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = CreateBoardWithShip(10, "Torpilleur", 2, x: 3, y: 4, horizontal: true);
+        await repository.SaveAsync(saved);
+
+        var request = new UsePowerUpRequest("Porte-avions", Orientation.Row, 4, null, null);
+        await engine.UsePowerUpAsync(game.Id, Participant.Player1, request);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(0, saved.ShotCount);
+    }
+
+    [Fact]
+    public async Task UsePowerUpAsync_Decoy_DoesNotIncrementShotCount()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        var ownShip = saved.Player1Board!.Ships.First(s => s.Name == "Contre-torpilleur");
+        var (shipX, shipY) = ownShip.Cells[^1];
+        var decoyTarget = new CellTarget(shipX + 1, shipY);
+
+        var request = new UsePowerUpRequest("Contre-torpilleur", null, null, null, [decoyTarget]);
+        await engine.UsePowerUpAsync(game.Id, Participant.Player1, request);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(0, saved.ShotCount);
+    }
+
     private static async Task<Game> CreateReadyPveGameAsync(GameEngine engine)
     {
         var game = await engine.CreateGameAsync(null);

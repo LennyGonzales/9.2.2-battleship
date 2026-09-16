@@ -195,6 +195,11 @@ public sealed class GameEngine(
         };
 
         ship.MarkPowerUpUsed();
+
+        var shotsResolved = (content.Torpedo is not null ? 1 : 0) + (content.Cells?.Count ?? 0);
+        if (IsHumanShooter(game, expectedShooter))
+            game.ShotCount += shotsResolved;
+
         game.Status = ResolveStatusAfterShot(game, expectedShooter, opponentBoard);
         game.ActiveParticipant = GetActiveParticipantForStatus(game.Status);
 
