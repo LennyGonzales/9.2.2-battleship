@@ -25,7 +25,7 @@ public class GameStatsGrpcServiceTests : IClassFixture<WebApplicationFactory<Pro
     public GameStatsGrpcServiceTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
-        _httpClient = factory.CreateClient();
+        _httpClient = factory.CreateClientWithoutObstacles();
     }
 
     [Fact]

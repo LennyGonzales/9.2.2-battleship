@@ -63,6 +63,7 @@ CORS : origine `http://localhost:8081` autorisée vers l'API.
 - **Assistant IA (développement)** : prompts décisifs tracés dans [`PROMPTS.md`](PROMPTS.md) ; revues argumentées dans [`REVUE-IA.md`](REVUE-IA.md).
 - **Plans d'implémentation** : [`docs/plans/`](docs/plans/) avant chaque route majeure.
 - **Tests** : exécutés via Docker (`./scripts/dotnet.sh test`) ; nommage `FullyQualifiedName~<Feature>` pour les filtres.
+- **CI** : GitHub Actions Docker-only sur `main` (build, tests, build images `api`/`app`) — voir [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 - **Binôme** : *noms à compléter*.
 
 ### Décisions structurantes et références des ADR
