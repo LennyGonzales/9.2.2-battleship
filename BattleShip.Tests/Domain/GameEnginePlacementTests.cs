@@ -12,7 +12,7 @@ public class GameEnginePlacementTests
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(42);
-        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
 
@@ -26,7 +26,7 @@ public class GameEnginePlacementTests
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(42);
-        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
         var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
@@ -40,7 +40,7 @@ public class GameEnginePlacementTests
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(123);
-        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(null);
         var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
@@ -56,7 +56,7 @@ public class GameEnginePlacementTests
     {
         var repository = new InMemoryGameRepository();
         var random = new Random(7);
-        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        var engine = new GameEngine(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 
         var game = await engine.CreateGameAsync(null);
         var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);

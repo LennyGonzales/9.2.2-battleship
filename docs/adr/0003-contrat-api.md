@@ -25,6 +25,7 @@ Option 2 retenue : `POST /api/games` et `GET /api/games/{id}` retournent un `Gam
 - `POST /api/games` PvE retourne `PlacingFleet` avec grille joueur vide ; `POST /api/games/{id}/fleet` place la flotte joueur puis l'ordinateur automatiquement
 - PvP : chaque joueur place sa flotte via `POST /fleet` avec `X-Player-Token` ; la partie démarre quand les deux flottes sont validées
 - `POST /api/games/{id}/shots` : **un tir par requête** ; PvE alterne `PlayerTurn` (body `{x,y}`) et `ComputerTurn` (body vide) ; PvP exige `X-Player-Token` ; réponse `ShotResultDto` (`shot`, `shooter`, `status`) ; `409` si coup refusé sans mutation
+- `difficulty` (PvE) : `Easy` = tir aléatoire ; `Normal` = damier `(x+y)` pair puis aléatoire ; `Hard` = chasse autour des `Hit` puis `Normal` (`DifficultyComputerOpponent`, stateless)
 
 ## Conséquences
 

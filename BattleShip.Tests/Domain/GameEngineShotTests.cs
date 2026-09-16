@@ -114,7 +114,7 @@ public class GameEngineShotTests
     }
 
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
-        new(repository, new FleetPlacer(random), new PlayerTokenService(), new RandomComputerOpponent(random));
+        new(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random));
 
     private static Board CreateSingleCellBoard()
     {
