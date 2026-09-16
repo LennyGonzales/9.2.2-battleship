@@ -4,11 +4,12 @@ using Microsoft.JSInterop;
 
 namespace BattleShip.App.Services;
 
-public sealed class GameSession(IGameApiClient client, IJSRuntime js)
+public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServiceProvider services)
 {
     private readonly List<ShotResultDto> _history = [];
 
     public GameDto? Game { get; private set; }
+    public GameStatsDto? Stats { get; private set; }
     public BoardDto? PlayerBoard { get; private set; }
     public BoardDto? OpponentBoard { get; private set; }
     public string? AlertMessage { get; private set; }
@@ -80,6 +81,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
                 {
                     Game = latest;
                     await RefreshBoardsAsync();
+                    await RefreshStatsAsync(ct);
                     Changed?.Invoke();
                 }
             }
@@ -119,6 +121,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
             (PlayerToken, MySide) = await RestoreTokenAsync(id);
         }
         await RefreshBoardsAsync();
+        await RefreshStatsAsync();
     });
 
     public Task JoinGameAsync(Guid id) => RunAsync(async () =>
@@ -161,7 +164,33 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
 
         Game = await client.GetGameAsync(Game.Id);
         await RefreshBoardsAsync();
+        await RefreshStatsAsync();
     });
+
+    private async Task RefreshStatsAsync(CancellationToken ct = default)
+    {
+        if (Game is null)
+        {
+            Stats = null;
+            return;
+        }
+
+        var statsClient = services.GetService<IGameStatsClient>();
+        if (statsClient is null)
+        {
+            Stats = null;
+            return;
+        }
+
+        try
+        {
+            Stats = await statsClient.GetGameStatsAsync(Game.Id, ct);
+        }
+        catch
+        {
+            Stats = null;
+        }
+    }
 
     private async Task RefreshBoardsAsync()
     {

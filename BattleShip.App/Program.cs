@@ -1,7 +1,9 @@
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using BattleShip.App;
 using BattleShip.App.Services;
+using Grpc.Net.Client;
+using Grpc.Net.Client.Web;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -18,6 +20,16 @@ if (useMockApi)
 else
 {
     builder.Services.AddScoped<IGameApiClient, HttpGameApiClient>();
+
+    builder.Services.AddSingleton(_ =>
+    {
+        var baseUrl = apiBaseUrl.TrimEnd('/');
+        return GrpcChannel.ForAddress(baseUrl, new GrpcChannelOptions
+        {
+            HttpHandler = new GrpcWebHandler(new HttpClientHandler())
+        });
+    });
+    builder.Services.AddScoped<IGameStatsClient, GrpcGameStatsClient>();
 }
 
 builder.Services.AddScoped<GameSession>();
