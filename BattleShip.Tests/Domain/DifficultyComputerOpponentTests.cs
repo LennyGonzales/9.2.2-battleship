@@ -170,6 +170,32 @@ public class DifficultyComputerOpponentTests
         }
     }
 
+    [Fact]
+    public void ChoosePowerUp_DecoyShipDamagedButAlive_ReturnsPlaceableTarget()
+    {
+        var playerBoard = new Board(10);
+        var game = CreateGameWithComputerFleet(Difficulty.Hard, playerBoard, allPowerUpsUsed: false);
+
+        var decoyShip = game.Player2Board!.Ships.First(s => s.PowerUpType == PowerUpType.Decoy);
+        var (hitX, hitY) = decoyShip.Cells[0];
+        game.Player2Board.ResolveShot(hitX, hitY);
+        Assert.False(decoyShip.IsSunk);
+        Assert.True(decoyShip.CanUsePowerUp);
+
+        UsePowerUpRequest? request = null;
+        for (var seed = 0; seed < 1000 && request is null; seed++)
+        {
+            var opponent = new DifficultyComputerOpponent(new Random(seed));
+            var candidate = opponent.ChoosePowerUp(game);
+            if (candidate is not null && candidate.ShipName == decoyShip.Name)
+                request = candidate;
+        }
+
+        Assert.NotNull(request);
+        var target = request!.Cells!.Single();
+        Assert.True(game.Player2Board.TryPlaceDecoy(target.X, target.Y));
+    }
+
     private static Game CreateGameWithComputerFleet(Difficulty difficulty, Board playerBoard, bool allPowerUpsUsed)
     {
         var computerBoard = new Board(playerBoard.Size);

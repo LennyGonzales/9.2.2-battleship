@@ -63,6 +63,9 @@ public sealed class DifficultyComputerOpponent(Random random) : IComputerOpponen
     {
         foreach (var (x, y) in ship.Cells)
         {
+            if (ownBoard.GetCell(x, y) != CellState.Ship)
+                continue; // damaged cell — TryPlaceDecoy requires adjacency to a still-intact Ship cell
+
             foreach (var (nx, ny) in GetNeighbors(x, y))
             {
                 if (ownBoard.IsWithinBounds(nx, ny) && ownBoard.GetCell(nx, ny) == CellState.Empty)
