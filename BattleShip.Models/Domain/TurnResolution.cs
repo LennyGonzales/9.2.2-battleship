@@ -26,3 +26,5 @@ public sealed record PowerUpTurnResult(
     ReconOutcome? Recon,
     ShotResolution? Torpedo,
     IReadOnlyList<ShotResolution>? Cells);
+
+public sealed record ComputerTurnResult(bool UsedPowerUp, ShotTurnResult? Shot, PowerUpTurnResult? PowerUp);

@@ -210,6 +210,25 @@ public sealed class GameEngine(
             content.Recon, content.Torpedo, content.Cells);
     }
 
+    public async Task<ComputerTurnResult> PlayComputerTurnAsync(Guid gameId, CancellationToken cancellationToken = default)
+    {
+        var game = await repository.GetByIdAsync(gameId, cancellationToken)
+            ?? throw new GameNotFoundException();
+
+        if (game.Mode != GameMode.VsComputer || game.Status != GameStatus.ComputerTurn)
+            throw new GameConflictException();
+
+        var request = computerOpponent.ChoosePowerUp(game);
+        if (request is not null)
+        {
+            var powerUpResult = await UsePowerUpAsync(gameId, Participant.Player2, request, cancellationToken);
+            return new ComputerTurnResult(true, null, powerUpResult);
+        }
+
+        var shotResult = await FireShotAsync(gameId, null, null, null, cancellationToken);
+        return new ComputerTurnResult(false, shotResult, null);
+    }
+
     private readonly record struct PowerUpContent(
         ReconOutcome? Recon,
         ShotResolution? Torpedo,

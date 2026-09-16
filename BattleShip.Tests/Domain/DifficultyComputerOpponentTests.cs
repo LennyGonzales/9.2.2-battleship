@@ -1,4 +1,5 @@
 using BattleShip.API.Services;
+using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
 
 namespace BattleShip.Tests.Domain;
@@ -113,4 +114,81 @@ public class DifficultyComputerOpponentTests
 
     private static bool IsAdjacentTo((int X, int Y) shot, int x, int y) =>
         Math.Abs(shot.X - x) + Math.Abs(shot.Y - y) == 1;
+
+    [Fact]
+    public void ChoosePowerUp_NoEligibleShips_ReturnsNull()
+    {
+        var playerBoard = new Board(10);
+        var game = CreateGameWithComputerFleet(Difficulty.Hard, playerBoard, allPowerUpsUsed: true);
+
+        var request = _opponent.ChoosePowerUp(game);
+
+        Assert.Null(request);
+    }
+
+    [Fact]
+    public void ChoosePowerUp_WhenReturningRequest_TargetsAnEligibleShipWithMatchingShape()
+    {
+        var playerBoard = new Board(10);
+        var game = CreateGameWithComputerFleet(Difficulty.Hard, playerBoard, allPowerUpsUsed: false);
+
+        UsePowerUpRequest? request = null;
+        for (var seed = 0; seed < 200 && request is null; seed++)
+        {
+            var opponent = new DifficultyComputerOpponent(new Random(seed));
+            request = opponent.ChoosePowerUp(game);
+        }
+
+        Assert.NotNull(request);
+        var ship = game.Player2Board!.Ships.First(s => s.Name == request!.ShipName);
+        Assert.True(ship.CanUsePowerUp);
+        AssertShapeMatchesType(ship.PowerUpType, request!);
+    }
+
+    private static void AssertShapeMatchesType(PowerUpType type, UsePowerUpRequest request)
+    {
+        switch (type)
+        {
+            case PowerUpType.Recon:
+                Assert.NotNull(request.Orientation);
+                Assert.NotNull(request.Index);
+                break;
+            case PowerUpType.Torpedo:
+                Assert.NotNull(request.Orientation);
+                Assert.NotNull(request.Index);
+                Assert.NotNull(request.EntryEdge);
+                break;
+            case PowerUpType.TwinStrike:
+            case PowerUpType.DoubleStrike:
+                Assert.NotNull(request.Cells);
+                Assert.Equal(2, request.Cells!.Count);
+                break;
+            case PowerUpType.Decoy:
+                Assert.NotNull(request.Cells);
+                Assert.Single(request.Cells!);
+                break;
+        }
+    }
+
+    private static Game CreateGameWithComputerFleet(Difficulty difficulty, Board playerBoard, bool allPowerUpsUsed)
+    {
+        var computerBoard = new Board(playerBoard.Size);
+        new FleetPlacer(new Random(123)).PlaceFleetRandomly(computerBoard);
+
+        if (allPowerUpsUsed)
+        {
+            foreach (var ship in computerBoard.Ships)
+                ship.MarkPowerUpUsed();
+        }
+
+        return new Game
+        {
+            Mode = GameMode.VsComputer,
+            Difficulty = difficulty,
+            BoardSize = playerBoard.Size,
+            Player1Board = playerBoard,
+            Player2Board = computerBoard,
+            Status = GameStatus.ComputerTurn,
+        };
+    }
 }

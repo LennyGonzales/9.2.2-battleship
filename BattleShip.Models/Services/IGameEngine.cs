@@ -23,4 +23,5 @@ public interface IGameEngine
         Participant? caller,
         UsePowerUpRequest request,
         CancellationToken cancellationToken = default);
+    Task<ComputerTurnResult> PlayComputerTurnAsync(Guid gameId, CancellationToken cancellationToken = default);
 }

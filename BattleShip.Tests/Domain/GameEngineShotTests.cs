@@ -129,5 +129,6 @@ public class GameEngineShotTests
     private sealed class FixedComputerOpponent(int x, int y) : IComputerOpponent
     {
         public (int X, int Y) ChooseShot(Game game) => (x, y);
+        public UsePowerUpRequest? ChoosePowerUp(Game game) => null;
     }
 }
