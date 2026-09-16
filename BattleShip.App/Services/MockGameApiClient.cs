@@ -397,6 +397,11 @@ public sealed class MockGameApiClient : IGameApiClient
         }
 
         var (a, b) = (targetCells[0], targetCells[1]);
+        if (a.X == b.X && a.Y == b.Y)
+        {
+            throw Conflict("Les deux cases doivent etre distinctes.");
+        }
+
         if (requireAdjacent && Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) != 1)
         {
             throw ValidationError("Les deux cases doivent etre adjacentes.");
