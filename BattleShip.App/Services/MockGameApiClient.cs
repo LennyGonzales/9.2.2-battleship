@@ -6,15 +6,6 @@ namespace BattleShip.App.Services;
 
 public sealed class MockGameApiClient : IGameApiClient
 {
-    private static readonly (string Name, int Length)[] FleetSpec =
-    [
-        ("Porte-avions", 5),
-        ("Croiseur", 4),
-        ("Contre-torpilleur", 3),
-        ("Sous-marin", 3),
-        ("Torpilleur", 2),
-    ];
-
     private readonly ConcurrentDictionary<Guid, MockGame> _games = new();
 
     public Task<GameCreatedDto> CreateGameAsync(CreateGameRequest request, CancellationToken ct = default)
@@ -24,17 +15,15 @@ public sealed class MockGameApiClient : IGameApiClient
             throw Conflict("Le multijoueur necessite le vrai backend (UseMockApi=false).");
         }
 
-        var boardSize = Math.Clamp(request.BoardSize ?? 10, 5, 20);
+        var boardSize = Math.Clamp(request.BoardSize ?? GameOptions.DefaultBoardSize, GameOptions.MinBoardSize, GameOptions.MaxBoardSize);
         var difficulty = request.Difficulty ?? Difficulty.Normal;
-        var rng = Random.Shared;
 
         var game = new MockGame
         {
             Id = Guid.NewGuid(),
             BoardSize = boardSize,
             Difficulty = difficulty,
-            PlayerFleet = PlaceFleet(boardSize, rng),
-            ComputerFleet = PlaceFleet(boardSize, rng),
+            PlayerBoard = new Board(boardSize),
             CreatedAt = DateTimeOffset.UtcNow,
         };
         _games[game.Id] = game;
@@ -47,61 +36,49 @@ public sealed class MockGameApiClient : IGameApiClient
     public Task<GameDto> GetGameAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(ToGameDto(GetGameOrThrow(id)));
 
+    public Task<GameDto> PlaceFleetAsync(
+        Guid id, PlaceFleetRequest request, string? playerToken, CancellationToken ct = default)
+    {
+        var game = GetGameOrThrow(id);
+
+        if (game.Status != GameStatus.PlacingFleet)
+        {
+            throw Conflict("Le placement de flotte n'est pas autorise dans cet etat.");
+        }
+
+        if (game.PlayerBoard.Ships.Count > 0)
+        {
+            throw Conflict("La flotte est deja placee.");
+        }
+
+        PlaceFleetFromRequest(game.PlayerBoard, request.Ships);
+
+        game.ComputerBoard = new Board(game.BoardSize);
+        PlaceFleetRandomly(game.ComputerBoard, Random.Shared);
+        game.Status = GameStatus.PlayerTurn;
+
+        return Task.FromResult(ToGameDto(game));
+    }
+
     public Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
-        var cells = new List<CellDto>();
-        for (var y = 0; y < game.BoardSize; y++)
-        {
-            for (var x = 0; x < game.BoardSize; x++)
-            {
-                var cell = (X: x, Y: y);
-                var ship = game.PlayerFleet.FirstOrDefault(s => s.Cells.Contains(cell));
-                var state = ship switch
-                {
-                    null => VisibleCellState.Empty,
-                    _ when ship.Hits.Contains(cell) && ship.IsSunk => VisibleCellState.Sunk,
-                    _ when ship.Hits.Contains(cell) => VisibleCellState.Hit,
-                    _ => VisibleCellState.Ship,
-                };
-                cells.Add(new CellDto(x, y, state));
-            }
-        }
-        return Task.FromResult(new BoardDto(BoardOwner.Player, game.BoardSize, cells));
+        EnsureStarted(game);
+        return Task.FromResult(ToBoardDto(game.PlayerBoard, BoardOwner.Player));
     }
 
     public Task<BoardDto> GetOpponentBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
-        var cells = new List<CellDto>();
-        for (var y = 0; y < game.BoardSize; y++)
-        {
-            for (var x = 0; x < game.BoardSize; x++)
-            {
-                var cell = (X: x, Y: y);
-                if (!game.PlayerShotsAtComputer.Contains(cell))
-                {
-                    cells.Add(new CellDto(x, y, VisibleCellState.Unknown));
-                    continue;
-                }
-
-                var ship = game.ComputerFleet.FirstOrDefault(s => s.Cells.Contains(cell));
-                var state = ship switch
-                {
-                    { IsSunk: true } => VisibleCellState.Sunk,
-                    not null => VisibleCellState.Hit,
-                    null => VisibleCellState.Miss,
-                };
-                cells.Add(new CellDto(x, y, state));
-            }
-        }
-        return Task.FromResult(new BoardDto(BoardOwner.Opponent, game.BoardSize, cells));
+        EnsureStarted(game);
+        return Task.FromResult(ToBoardDto(game.ComputerBoard!, BoardOwner.Opponent));
     }
 
     public Task<ShotResultDto> FireShotAsync(
         Guid id, ShotRequest shot, string? playerToken, CancellationToken ct = default)
     {
         var game = GetGameOrThrow(id);
+        EnsureStarted(game);
         if (game.Status is GameStatus.PlayerWon or GameStatus.ComputerWon)
         {
             throw Conflict("La partie est deja terminee.");
@@ -112,6 +89,14 @@ public sealed class MockGameApiClient : IGameApiClient
         return Task.FromResult(isComputerTurnCall
             ? FireComputerShot(game)
             : FirePlayerShot(game, shot));
+    }
+
+    private static void EnsureStarted(MockGame game)
+    {
+        if (game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
+        {
+            throw Conflict("La partie n'a pas encore commence.");
+        }
     }
 
     private static ShotResultDto FirePlayerShot(MockGame game, ShotRequest shot)
@@ -126,21 +111,21 @@ public sealed class MockGameApiClient : IGameApiClient
             throw ValidationError("Coordonnees requises pour ce tour.");
         }
 
-        if (shot.X < 0 || shot.X >= game.BoardSize || shot.Y < 0 || shot.Y >= game.BoardSize)
+        if (!game.ComputerBoard!.IsWithinBounds(shot.X.Value, shot.Y.Value))
         {
             throw ValidationError("La cible est hors de la grille.");
         }
 
-        var target = (X: shot.X.Value, Y: shot.Y.Value);
-        if (!game.PlayerShotsAtComputer.Add(target))
+        if (game.ComputerBoard.IsAlreadyTargeted(shot.X.Value, shot.Y.Value))
         {
             throw Conflict("Cette case a deja ete ciblee.");
         }
 
-        var outcome = ResolveShot(game.ComputerFleet, target);
+        var resolution = game.ComputerBoard.ResolveShot(shot.X.Value, shot.Y.Value);
         game.ShotCount++;
-        game.Status = AllSunk(game.ComputerFleet) ? GameStatus.PlayerWon : GameStatus.ComputerTurn;
+        game.Status = game.ComputerBoard.AreAllShipsSunk() ? GameStatus.PlayerWon : GameStatus.ComputerTurn;
 
+        var outcome = new ShotOutcomeDto(resolution.X, resolution.Y, resolution.Outcome, resolution.SunkShipName);
         return new ShotResultDto(outcome, PlayerSide.Player, game.Status);
     }
 
@@ -152,11 +137,11 @@ public sealed class MockGameApiClient : IGameApiClient
         }
 
         var target = PickComputerTarget(game);
-        game.ComputerShotsAtPlayer.Add(target);
-        var outcome = ResolveShot(game.PlayerFleet, target);
-        UpdateHuntState(game, outcome);
-        game.Status = AllSunk(game.PlayerFleet) ? GameStatus.ComputerWon : GameStatus.PlayerTurn;
+        var resolution = game.PlayerBoard.ResolveShot(target.X, target.Y);
+        UpdateHuntState(game, resolution);
+        game.Status = game.PlayerBoard.AreAllShipsSunk() ? GameStatus.ComputerWon : GameStatus.PlayerTurn;
 
+        var outcome = new ShotOutcomeDto(resolution.X, resolution.Y, resolution.Outcome, resolution.SunkShipName);
         return new ShotResultDto(outcome, PlayerSide.Computer, game.Status);
     }
 
@@ -169,66 +154,85 @@ public sealed class MockGameApiClient : IGameApiClient
         return game;
     }
 
-    private static List<ShipInstance> PlaceFleet(int boardSize, Random rng)
+    private static void PlaceFleetFromRequest(Board board, IReadOnlyList<PlaceShipRequest> ships)
     {
-        var occupied = new HashSet<(int X, int Y)>();
-        var fleet = new List<ShipInstance>();
+        ValidateFleetComposition(ships);
 
-        foreach (var (name, length) in FleetSpec)
+        foreach (var placement in ships)
         {
-            const int maxAttempts = 5000;
+            var spec = GameOptions.DefaultFleet.First(s => s.Name == placement.Name);
+            var ship = new Ship { Name = spec.Name, Length = spec.Length };
+
+            if (!board.CanPlaceShip(ship, placement.X, placement.Y, placement.Horizontal))
+            {
+                throw ValidationError($"Impossible de placer {placement.Name} en ({placement.X},{placement.Y}).");
+            }
+
+            board.PlaceShip(ship, placement.X, placement.Y, placement.Horizontal);
+        }
+    }
+
+    private static void ValidateFleetComposition(IReadOnlyList<PlaceShipRequest> ships)
+    {
+        if (ships.Count != GameOptions.DefaultFleet.Length)
+        {
+            throw ValidationError($"La flotte doit contenir exactement {GameOptions.DefaultFleet.Length} navires.");
+        }
+
+        var expectedNames = GameOptions.DefaultFleet.Select(s => s.Name).ToHashSet();
+        var receivedNames = new HashSet<string>();
+
+        foreach (var ship in ships)
+        {
+            if (!expectedNames.Contains(ship.Name))
+            {
+                throw ValidationError($"Navire inconnu : {ship.Name}.");
+            }
+
+            if (!receivedNames.Add(ship.Name))
+            {
+                throw ValidationError($"Navire en double : {ship.Name}.");
+            }
+        }
+
+        foreach (var expected in expectedNames)
+        {
+            if (!receivedNames.Contains(expected))
+            {
+                throw ValidationError($"Navire manquant : {expected}.");
+            }
+        }
+    }
+
+    private static void PlaceFleetRandomly(Board board, Random rng)
+    {
+        foreach (var (name, length) in GameOptions.DefaultFleet)
+        {
+            var ship = new Ship { Name = name, Length = length };
             var placed = false;
 
-            for (var attempt = 0; attempt < maxAttempts && !placed; attempt++)
+            for (var attempt = 0; attempt < GameOptions.MaxPlacementAttemptsPerShip; attempt++)
             {
                 var horizontal = rng.Next(2) == 0;
-                var maxX = horizontal ? boardSize - length : boardSize - 1;
-                var maxY = horizontal ? boardSize - 1 : boardSize - length;
-                var startX = rng.Next(maxX + 1);
-                var startY = rng.Next(maxY + 1);
+                var x = rng.Next(board.Size);
+                var y = rng.Next(board.Size);
 
-                var cells = Enumerable.Range(0, length)
-                    .Select(i => horizontal
-                        ? (X: startX + i, Y: startY)
-                        : (X: startX, Y: startY + i))
-                    .ToList();
-
-                if (cells.Any(occupied.Contains))
+                if (!board.CanPlaceShip(ship, x, y, horizontal))
                 {
                     continue;
                 }
 
-                foreach (var cell in cells)
-                {
-                    occupied.Add(cell);
-                }
-
-                fleet.Add(new ShipInstance { Name = name, Length = length, Cells = cells });
+                board.PlaceShip(ship, x, y, horizontal);
                 placed = true;
+                break;
             }
 
             if (!placed)
             {
                 throw new InvalidOperationException(
-                    $"Impossible de placer le navire '{name}' sur une grille de taille {boardSize}.");
+                    $"Impossible de placer le navire '{name}' sur une grille de taille {board.Size}.");
             }
         }
-
-        return fleet;
-    }
-
-    private static ShotOutcomeDto ResolveShot(List<ShipInstance> fleet, (int X, int Y) target)
-    {
-        var ship = fleet.FirstOrDefault(s => s.Cells.Contains(target));
-        if (ship is null)
-        {
-            return new ShotOutcomeDto(target.X, target.Y, ShotOutcome.Miss, null);
-        }
-
-        ship.Hits.Add(target);
-        return ship.IsSunk
-            ? new ShotOutcomeDto(target.X, target.Y, ShotOutcome.Sunk, ship.Name)
-            : new ShotOutcomeDto(target.X, target.Y, ShotOutcome.Hit, null);
     }
 
     private static (int X, int Y) PickComputerTarget(MockGame game)
@@ -238,7 +242,8 @@ public sealed class MockGameApiClient : IGameApiClient
             while (game.HuntQueue.Count > 0)
             {
                 var candidate = game.HuntQueue.Dequeue();
-                if (IsInBounds(candidate, game.BoardSize) && !game.ComputerShotsAtPlayer.Contains(candidate))
+                if (game.PlayerBoard.IsWithinBounds(candidate.X, candidate.Y)
+                    && !game.PlayerBoard.IsAlreadyTargeted(candidate.X, candidate.Y))
                 {
                     return candidate;
                 }
@@ -255,35 +260,30 @@ public sealed class MockGameApiClient : IGameApiClient
         do
         {
             candidate = (rng.Next(game.BoardSize), rng.Next(game.BoardSize));
-        } while (game.ComputerShotsAtPlayer.Contains(candidate));
+        } while (game.PlayerBoard.IsAlreadyTargeted(candidate.X, candidate.Y));
         return candidate;
     }
 
-    private static bool IsInBounds((int X, int Y) cell, int size) =>
-        cell.X >= 0 && cell.X < size && cell.Y >= 0 && cell.Y < size;
-
-    private static void UpdateHuntState(MockGame game, ShotOutcomeDto outcome)
+    private static void UpdateHuntState(MockGame game, ShotResolution resolution)
     {
         if (game.Difficulty != Difficulty.Hard)
         {
             return;
         }
 
-        if (outcome.Outcome == ShotOutcome.Sunk)
+        if (resolution.Outcome == ShotOutcome.Sunk)
         {
             game.HuntQueue.Clear();
         }
-        else if (outcome.Outcome == ShotOutcome.Hit)
+        else if (resolution.Outcome == ShotOutcome.Hit)
         {
-            var (x, y) = (outcome.X, outcome.Y);
+            var (x, y) = (resolution.X, resolution.Y);
             foreach (var neighbor in new[] { (x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1) })
             {
                 game.HuntQueue.Enqueue(neighbor);
             }
         }
     }
-
-    private static bool AllSunk(IEnumerable<ShipInstance> fleet) => fleet.All(s => s.IsSunk);
 
     private static PlayerSide? CurrentTurn(GameStatus status) => status switch
     {
@@ -311,6 +311,32 @@ public sealed class MockGameApiClient : IGameApiClient
         game.CreatedAt,
         null);
 
+    private static BoardDto ToBoardDto(Board board, BoardOwner owner)
+    {
+        var cells = new List<CellDto>(board.Size * board.Size);
+        for (var y = 0; y < board.Size; y++)
+        {
+            for (var x = 0; x < board.Size; x++)
+            {
+                cells.Add(new CellDto(x, y, ToVisibleCellState(board.GetCell(x, y), owner)));
+            }
+        }
+        return new BoardDto(owner, board.Size, cells);
+    }
+
+    private static VisibleCellState ToVisibleCellState(CellState state, BoardOwner owner) => (owner, state) switch
+    {
+        (BoardOwner.Opponent, CellState.Ship) => VisibleCellState.Unknown,
+        (BoardOwner.Opponent, CellState.Empty) => VisibleCellState.Unknown,
+        (BoardOwner.Opponent, CellState.Miss) => VisibleCellState.Miss,
+        (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
+        (_, CellState.Empty) => VisibleCellState.Empty,
+        (_, CellState.Ship) => VisibleCellState.Ship,
+        (_, CellState.Hit) => VisibleCellState.Hit,
+        (_, CellState.Sunk) => VisibleCellState.Sunk,
+        _ => VisibleCellState.Unknown,
+    };
+
     private static GameApiException NotFound(string detail) =>
         new(new ProblemDetailsDto("about:blank", "Not Found", 404, detail, null), 404);
 
@@ -320,27 +346,16 @@ public sealed class MockGameApiClient : IGameApiClient
     private static GameApiException ValidationError(string detail) =>
         new(new ProblemDetailsDto("about:blank", "Bad Request", 400, detail, null), 400);
 
-    private sealed class ShipInstance
-    {
-        public required string Name { get; init; }
-        public required int Length { get; init; }
-        public required List<(int X, int Y)> Cells { get; init; }
-        public HashSet<(int X, int Y)> Hits { get; } = [];
-        public bool IsSunk => Hits.Count == Cells.Count;
-    }
-
     private sealed class MockGame
     {
         public required Guid Id { get; init; }
         public required int BoardSize { get; init; }
         public required Difficulty Difficulty { get; init; }
-        public required List<ShipInstance> PlayerFleet { get; init; }
-        public required List<ShipInstance> ComputerFleet { get; init; }
+        public required Board PlayerBoard { get; init; }
+        public Board? ComputerBoard { get; set; }
         public required DateTimeOffset CreatedAt { get; init; }
-        public HashSet<(int X, int Y)> PlayerShotsAtComputer { get; } = [];
-        public HashSet<(int X, int Y)> ComputerShotsAtPlayer { get; } = [];
         public Queue<(int X, int Y)> HuntQueue { get; } = [];
-        public GameStatus Status { get; set; } = GameStatus.PlayerTurn;
+        public GameStatus Status { get; set; } = GameStatus.PlacingFleet;
         public int ShotCount { get; set; }
     }
 }

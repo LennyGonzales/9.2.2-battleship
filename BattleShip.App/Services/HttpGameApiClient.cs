@@ -34,6 +34,16 @@ public sealed class HttpGameApiClient(HttpClient http) : IGameApiClient
         return (await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions, ct))!;
     }
 
+    public async Task<GameDto> PlaceFleetAsync(
+        Guid id, PlaceFleetRequest request, string? playerToken, CancellationToken ct = default)
+    {
+        using var httpRequest = CreateRequest(HttpMethod.Post, $"api/games/{id}/fleet", playerToken);
+        httpRequest.Content = JsonContent.Create(request, options: JsonOptions);
+        using var response = await http.SendAsync(httpRequest, ct);
+        await EnsureSuccessAsync(response, ct);
+        return (await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions, ct))!;
+    }
+
     public async Task<BoardDto> GetPlayerBoardAsync(Guid id, string? playerToken, CancellationToken ct = default)
     {
         using var request = CreateRequest(HttpMethod.Get, $"api/games/{id}/board/player", playerToken);

@@ -20,6 +20,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     public bool CanFire => !IsBusy && Game is not null && MySide is not null && Game.CurrentTurn == MySide;
     public bool AwaitingOpponent => Game?.Status == GameStatus.Waiting;
     public bool CanJoin => Game is { Mode: GameMode.VsPlayer, Status: GameStatus.Waiting } && MySide is null;
+    public bool IsPlacingFleet => Game?.Status == GameStatus.PlacingFleet;
 
     public event Action? Changed;
 
@@ -131,6 +132,17 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
         await RefreshBoardsAsync();
     });
 
+    public Task PlaceFleetAsync(IReadOnlyList<PlaceShipRequest> ships) => RunAsync(async () =>
+    {
+        if (Game is null)
+        {
+            return;
+        }
+
+        Game = await client.PlaceFleetAsync(Game.Id, new PlaceFleetRequest(ships), PlayerToken);
+        await RefreshBoardsAsync();
+    });
+
     public Task FireShotAsync(int x, int y) => RunAsync(async () =>
     {
         if (Game is null)
@@ -153,7 +165,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
 
     private async Task RefreshBoardsAsync()
     {
-        if (Game is null || Game.Status == GameStatus.Waiting)
+        if (Game is null || Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
         {
             return;
         }

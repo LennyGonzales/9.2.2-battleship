@@ -30,6 +30,11 @@ else if (Session.AwaitingOpponent)
         }
     </section>
 }
+else if (Session.IsPlacingFleet)
+{
+    <AlertBanner Message="@Session.AlertMessage" />
+    <FleetDeployment BoardSize="Session.Game.BoardSize" IsBusy="Session.IsBusy" OnDeploy="HandleDeployAsync" />
+}
 else
 {
     <StatusConsole Game="Session.Game" />
@@ -96,6 +101,11 @@ else
     private async Task HandleFireAsync((int X, int Y) target)
     {
         await Session.FireShotAsync(target.X, target.Y);
+    }
+
+    private async Task HandleDeployAsync(IReadOnlyList<PlaceShipRequest> ships)
+    {
+        await Session.PlaceFleetAsync(ships);
     }
 
     private async Task JoinAsync()

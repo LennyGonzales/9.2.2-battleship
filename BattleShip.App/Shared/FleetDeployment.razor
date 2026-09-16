@@ -1,0 +1,235 @@
+@using BattleShip.Models.Contracts
+@using BattleShip.Models.Domain
+
+<section class="radar-panel deploy-panel">
+    <header class="hud-label deploy-panel__title">PLACEMENT DE LA FLOTTE</header>
+
+    <div class="deploy-panel__layout">
+        <div class="deploy-grid" style="--grid-size: @BoardSize">
+            @for (var y = 0; y < BoardSize; y++)
+            {
+                for (var x = 0; x < BoardSize; x++)
+                {
+                    var cellX = x;
+                    var cellY = y;
+                    <button type="button"
+                            class="deploy-cell @CellClass(cellX, cellY)"
+                            disabled="@IsBusy"
+                            @onmouseover="() => _hoverCell = (cellX, cellY)"
+                            @onclick="() => HandleCellClick(cellX, cellY)"
+                            aria-label="@($"{(char)('A' + cellX)}{cellY + 1}")">
+                    </button>
+                }
+            }
+        </div>
+
+        <div class="deploy-sidebar">
+            <div class="deploy-fleet-list">
+                @foreach (var (name, length) in GameOptions.DefaultFleet)
+                {
+                    var isPlaced = _placements.Any(p => p.Name == name);
+                    <button type="button"
+                            class="btn-brass deploy-ship-btn @(name == _activeShipName ? "btn-brass--active" : "") @(isPlaced ? "deploy-ship-btn--placed" : "")"
+                            disabled="@(IsBusy || isPlaced)"
+                            @onclick="() => _activeShipName = name">
+                        @name (@length)
+                        @if (isPlaced)
+                        {
+                            <span aria-hidden="true"> ✓</span>
+                        }
+                    </button>
+                }
+            </div>
+
+            <div class="deploy-actions">
+                <button type="button" class="btn-brass" disabled="@IsBusy" @onclick="() => _horizontal = !_horizontal">
+                    Orientation : @(_horizontal ? "Horizontale" : "Verticale")
+                </button>
+                <button type="button" class="btn-brass" disabled="@IsBusy" @onclick="RandomizeAll">
+                    Placement aleatoire
+                </button>
+                <button type="button" class="btn-brass" disabled="@IsBusy" @onclick="ResetAll">
+                    Reinitialiser
+                </button>
+            </div>
+
+            <button type="button"
+                    class="btn-brass btn-brass--deploy"
+                    disabled="@(IsBusy || !AllShipsPlaced)"
+                    @onclick="ConfirmAsync">
+                @(IsBusy ? "Deploiement en cours..." : "Confirmer le deploiement")
+            </button>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public required int BoardSize { get; set; }
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<PlaceShipRequest>> OnDeploy { get; set; }
+
+    private sealed record Placement(string Name, int Length, int X, int Y, bool Horizontal);
+
+    private readonly List<Placement> _placements = [];
+    private Board _board = null!;
+    private string? _activeShipName;
+    private bool _horizontal = true;
+    private (int X, int Y)? _hoverCell;
+    private int _boardSizeBuilt;
+
+    private bool AllShipsPlaced => _placements.Count == GameOptions.DefaultFleet.Length;
+
+    protected override void OnInitialized() => ResetAll();
+
+    protected override void OnParametersSet()
+    {
+        if (_board is null || _boardSizeBuilt != BoardSize)
+        {
+            ResetAll();
+        }
+    }
+
+    private void HandleCellClick(int x, int y)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        var occupying = FindPlacementAt(x, y);
+        if (occupying is not null)
+        {
+            _placements.Remove(occupying);
+            _activeShipName = occupying.Name;
+            _horizontal = occupying.Horizontal;
+            RebuildBoard();
+            return;
+        }
+
+        if (_activeShipName is null)
+        {
+            return;
+        }
+
+        var spec = GameOptions.DefaultFleet.First(s => s.Name == _activeShipName);
+        var ship = new Ship { Name = spec.Name, Length = spec.Length };
+        if (!_board.CanPlaceShip(ship, x, y, _horizontal))
+        {
+            return;
+        }
+
+        _board.PlaceShip(ship, x, y, _horizontal);
+        _placements.Add(new Placement(spec.Name, spec.Length, x, y, _horizontal));
+        _activeShipName = GameOptions.DefaultFleet
+            .Select(s => s.Name)
+            .FirstOrDefault(n => _placements.All(p => p.Name != n));
+    }
+
+    private Placement? FindPlacementAt(int x, int y) =>
+        _placements.FirstOrDefault(p => GetCells(p).Contains((x, y)));
+
+    private static IEnumerable<(int X, int Y)> GetCells(Placement p) =>
+        Enumerable.Range(0, p.Length)
+            .Select(offset => p.Horizontal ? (p.X + offset, p.Y) : (p.X, p.Y + offset));
+
+    private void RandomizeAll()
+    {
+        var board = new Board(BoardSize);
+        var placements = new List<Placement>();
+        var rng = Random.Shared;
+
+        foreach (var (name, length) in GameOptions.DefaultFleet)
+        {
+            var ship = new Ship { Name = name, Length = length };
+            var placed = false;
+
+            for (var attempt = 0; attempt < GameOptions.MaxPlacementAttemptsPerShip && !placed; attempt++)
+            {
+                var horizontal = rng.Next(2) == 0;
+                var x = rng.Next(BoardSize);
+                var y = rng.Next(BoardSize);
+
+                if (!board.CanPlaceShip(ship, x, y, horizontal))
+                {
+                    continue;
+                }
+
+                board.PlaceShip(ship, x, y, horizontal);
+                placements.Add(new Placement(name, length, x, y, horizontal));
+                placed = true;
+            }
+
+            if (!placed)
+            {
+                return;
+            }
+        }
+
+        _board = board;
+        _boardSizeBuilt = BoardSize;
+        _placements.Clear();
+        _placements.AddRange(placements);
+        _activeShipName = null;
+    }
+
+    private void ResetAll()
+    {
+        _board = new Board(BoardSize);
+        _boardSizeBuilt = BoardSize;
+        _placements.Clear();
+        _activeShipName = GameOptions.DefaultFleet[0].Name;
+        _horizontal = true;
+        _hoverCell = null;
+    }
+
+    private void RebuildBoard()
+    {
+        var board = new Board(BoardSize);
+        foreach (var placement in _placements)
+        {
+            var ship = new Ship { Name = placement.Name, Length = placement.Length };
+            board.PlaceShip(ship, placement.X, placement.Y, placement.Horizontal);
+        }
+        _board = board;
+        _boardSizeBuilt = BoardSize;
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (!AllShipsPlaced)
+        {
+            return;
+        }
+
+        var ships = _placements
+            .Select(p => new PlaceShipRequest(p.Name, p.X, p.Y, p.Horizontal))
+            .ToList();
+        await OnDeploy.InvokeAsync(ships);
+    }
+
+    private string CellClass(int x, int y)
+    {
+        if (_board.GetCell(x, y) == CellState.Ship)
+        {
+            return "deploy-cell--ship";
+        }
+
+        if (_activeShipName is not null && _hoverCell is { } hover)
+        {
+            var spec = GameOptions.DefaultFleet.First(s => s.Name == _activeShipName);
+            var previewCells = Enumerable.Range(0, spec.Length)
+                .Select(offset => _horizontal ? (hover.X + offset, hover.Y) : (hover.X, hover.Y + offset))
+                .ToList();
+
+            if (previewCells.Contains((x, y)))
+            {
+                var ship = new Ship { Name = spec.Name, Length = spec.Length };
+                return _board.CanPlaceShip(ship, hover.X, hover.Y, _horizontal)
+                    ? "deploy-cell--preview-valid"
+                    : "deploy-cell--preview-invalid";
+            }
+        }
+
+        return "deploy-cell--empty";
+    }
+}
