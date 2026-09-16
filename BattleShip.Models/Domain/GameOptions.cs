@@ -19,4 +19,13 @@ public static class GameOptions
         ("Sous-marin", 3),
         ("Torpilleur", 2)
     ];
+
+    public static readonly IReadOnlyDictionary<string, PowerUpType> PowerUpByShipName = new Dictionary<string, PowerUpType>
+    {
+        ["Porte-avions"] = PowerUpType.Recon,
+        ["Croiseur"] = PowerUpType.DoubleStrike,
+        ["Contre-torpilleur"] = PowerUpType.Decoy,
+        ["Sous-marin"] = PowerUpType.TwinStrike,
+        ["Torpilleur"] = PowerUpType.Torpedo,
+    };
 }
