@@ -86,7 +86,7 @@ public class GameEngineShotTests
         var saved = await repository.GetByIdAsync(game.Id);
         Assert.NotNull(saved);
 
-        saved.Player2Board = CreateSingleCellBoard();
+        saved.Player2Board = CreateSingleCellBoard(5);
         saved.Player1Board = new Board(5);
         await repository.SaveAsync(saved);
 
@@ -109,6 +109,90 @@ public class GameEngineShotTests
             engine.FireShotAsync(game.Id, null, 1, 1));
     }
 
+    [Fact]
+    public async Task FireShotAsync_AfterPlayerWins_ThrowsConflictWithoutChangingState()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngineWithFixedOpponent(repository, new FixedComputerOpponent(9, 9));
+
+        var game = await CreateSeededPveWinScenarioAsync(engine, repository);
+
+        await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(GameStatus.PlayerWon, saved.Status);
+        var shotCountAfterWin = saved.ShotCount;
+
+        await Assert.ThrowsAsync<GameConflictException>(() =>
+            engine.FireShotAsync(game.Id, Participant.Player1, 1, 1));
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(shotCountAfterWin, saved.ShotCount);
+        Assert.Equal(GameStatus.PlayerWon, saved.Status);
+    }
+
+    [Fact]
+    public async Task FireShotAsync_AfterComputerWins_ThrowsConflictWithoutChangingState()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngineWithFixedOpponent(repository, new FixedComputerOpponent(0, 0));
+
+        var game = await engine.CreateGameAsync(new CreateGameRequest(5, Difficulty.Easy, null));
+        await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player1Board = CreateSingleCellBoard(5);
+        saved.Player2Board = new Board(5);
+        saved.Status = GameStatus.ComputerTurn;
+        saved.ActiveParticipant = Participant.Player2;
+        await repository.SaveAsync(saved);
+
+        await engine.FireShotAsync(game.Id, null, null, null);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(GameStatus.ComputerWon, saved.Status);
+        var shotCountAfterLoss = saved.ShotCount;
+
+        await Assert.ThrowsAsync<GameConflictException>(() =>
+            engine.FireShotAsync(game.Id, Participant.Player1, 1, 1));
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(shotCountAfterLoss, saved.ShotCount);
+        Assert.Equal(GameStatus.ComputerWon, saved.Status);
+    }
+
+    [Fact]
+    public async Task FireShotAsync_AfterPvpGameFinished_ThrowsConflictWithoutChangingState()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+
+        var created = await engine.CreateGameAsync(new CreateGameRequest(5, null, GameMode.VsPlayer));
+        await engine.JoinGameAsync(created.Id);
+        await engine.PlaceFleetAsync(created.Id, Participant.Player1, FleetTestData.ValidFleet);
+        await engine.PlaceFleetAsync(created.Id, Participant.Player2, FleetTestData.ValidFleet);
+
+        var saved = await repository.GetByIdAsync(created.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = CreateSingleCellBoard(5);
+        saved.Player1Board = new Board(5);
+        await repository.SaveAsync(saved);
+
+        await engine.FireShotAsync(created.Id, Participant.Player1, 0, 0);
+
+        saved = await repository.GetByIdAsync(created.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(GameStatus.Player1Won, saved.Status);
+
+        await Assert.ThrowsAsync<GameConflictException>(() =>
+            engine.FireShotAsync(created.Id, Participant.Player2, 1, 1));
+    }
+
     private static async Task<Game> CreateReadyPveGameAsync(GameEngine engine)
     {
         var game = await engine.CreateGameAsync(null);
@@ -118,9 +202,28 @@ public class GameEngineShotTests
     private static GameEngine CreateEngine(InMemoryGameRepository repository, Random random) =>
         new(repository, new FleetPlacer(random), new PlayerTokenService(), new DifficultyComputerOpponent(random), random, ObstacleGenerationOptions.None);
 
-    private static Board CreateSingleCellBoard()
+    private static GameEngine CreateEngineWithFixedOpponent(
+        InMemoryGameRepository repository,
+        IComputerOpponent opponent) =>
+        new(repository, new FleetPlacer(new Random(1)), new PlayerTokenService(), opponent, new Random(1), ObstacleGenerationOptions.None);
+
+    private static async Task<Game> CreateSeededPveWinScenarioAsync(GameEngine engine, InMemoryGameRepository repository)
     {
-        var board = new Board(5);
+        var game = await engine.CreateGameAsync(new CreateGameRequest(5, Difficulty.Easy, null));
+        await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = CreateSingleCellBoard(5);
+        saved.Player1Board = new Board(5);
+        await repository.SaveAsync(saved);
+
+        return game;
+    }
+
+    private static Board CreateSingleCellBoard(int size)
+    {
+        var board = new Board(size);
         var ship = new Ship { Name = "Torpilleur", Length = 1 };
         board.PlaceShip(ship, 0, 0, horizontal: true);
         return board;

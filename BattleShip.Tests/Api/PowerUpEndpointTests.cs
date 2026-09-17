@@ -4,8 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using BattleShip.Models.Services;
 using BattleShip.Tests.TestHelpers;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BattleShip.Tests.Api;
 
@@ -18,10 +20,15 @@ public class PowerUpEndpointTests : IClassFixture<WebApplicationFactory<Program>
     };
 
     private readonly HttpClient _client;
+    private readonly WebApplicationFactory<Program> _factory;
 
     public PowerUpEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClientWithoutObstacles();
+        _factory = factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureServices(services =>
+                    services.AddSingleton(ObstacleGenerationOptions.None)));
+        _client = _factory.CreateClient();
     }
 
     [Fact]
@@ -98,6 +105,36 @@ public class PowerUpEndpointTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
+    public async Task PostPowerUpAfterGameFinished_Returns409()
+    {
+        var gameId = await CreatePveGameAsync(boardSize: 5);
+
+        using var scope = _factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IGameRepository>();
+        var game = await repository.GetByIdAsync(gameId);
+        Assert.NotNull(game);
+        game.Player2Board = CreateSingleCellBoard(game.BoardSize);
+        game.Player1Board = new Board(game.BoardSize);
+        await repository.SaveAsync(game);
+
+        var winningShot = await _client.PostAsJsonAsync($"/api/games/{gameId}/shots", new { x = 0, y = 0 });
+        winningShot.EnsureSuccessStatusCode();
+
+        var winResult = await winningShot.Content.ReadFromJsonAsync<ShotResultDto>(JsonOptions);
+        Assert.NotNull(winResult);
+        Assert.Equal(GameStatus.PlayerWon, winResult.Status);
+
+        var powerUp = await _client.PostAsJsonAsync($"/api/games/{gameId}/powerups", new
+        {
+            shipName = "Porte-avions",
+            orientation = "Row",
+            index = 0,
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, powerUp.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPlayerBoard_ExposesOwnFleetPowerUpStatus()
     {
         var gameId = await CreatePveGameAsync();
@@ -112,9 +149,11 @@ public class PowerUpEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Assert.All(board.Ships, s => Assert.False(s.PowerUpUsed));
     }
 
-    private async Task<Guid> CreatePveGameAsync()
+    private async Task<Guid> CreatePveGameAsync(int? boardSize = null)
     {
-        var response = await _client.PostAsJsonAsync("/api/games", new { });
+        var response = boardSize is null
+            ? await _client.PostAsJsonAsync("/api/games", new { })
+            : await _client.PostAsJsonAsync("/api/games", new { boardSize });
         response.EnsureSuccessStatusCode();
 
         var dto = await response.Content.ReadFromJsonAsync<GameDto>(JsonOptions);
@@ -124,5 +163,13 @@ public class PowerUpEndpointTests : IClassFixture<WebApplicationFactory<Program>
         fleetResponse.EnsureSuccessStatusCode();
 
         return dto.Id;
+    }
+
+    private static Board CreateSingleCellBoard(int size)
+    {
+        var board = new Board(size);
+        var ship = new Ship { Name = "Torpilleur", Length = 1 };
+        board.PlaceShip(ship, 0, 0, horizontal: true);
+        return board;
     }
 }

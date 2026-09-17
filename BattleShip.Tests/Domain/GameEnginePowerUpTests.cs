@@ -259,6 +259,36 @@ public class GameEnginePowerUpTests
             engine.UsePowerUpAsync(game.Id, Participant.Player1, request));
     }
 
+    [Fact]
+    public async Task UsePowerUpAsync_AfterGameFinished_ThrowsConflictWithoutChangingState()
+    {
+        var repository = new InMemoryGameRepository();
+        var engine = CreateEngine(repository, new Random(1));
+        var game = await CreateReadyPveGameAsync(engine);
+
+        var saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        saved.Player2Board = CreateBoardWithShip(10, "Torpilleur", 1, x: 0, y: 0, horizontal: true);
+        saved.Player1Board = new Board(10);
+        await repository.SaveAsync(saved);
+
+        await engine.FireShotAsync(game.Id, Participant.Player1, 0, 0);
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(GameStatus.PlayerWon, saved.Status);
+        var shotCountAfterWin = saved.ShotCount;
+
+        var request = new UsePowerUpRequest("Porte-avions", Orientation.Row, 0, null, null);
+        await Assert.ThrowsAsync<GameConflictException>(() =>
+            engine.UsePowerUpAsync(game.Id, Participant.Player1, request));
+
+        saved = await repository.GetByIdAsync(game.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(shotCountAfterWin, saved.ShotCount);
+        Assert.Equal(GameStatus.PlayerWon, saved.Status);
+    }
+
     private static async Task<Game> CreateReadyPveGameAsync(GameEngine engine)
     {
         var game = await engine.CreateGameAsync(null);

@@ -62,3 +62,35 @@ Trois revues argumentées minimum. Aucune erreur n'est exigée ; chaque conclusi
   - Commit à renseigner après validation locale.
 - Après correction éventuelle : résultat avant / après : aucune correction nécessaire — comportement conforme dès la première implémentation.
 - Limites et points non vérifiés : UUID mal formé dans l'URL (comportement framework `400`, non documenté dans swagger) ; cas `200` après POST couvert par test d'intégration uniquement.
+
+---
+
+## Revue 3/3 : Aucun tir après fin de partie
+
+- Proposition et référence dans le dépôt : garde `game.IsFinished()` dans [`GameEngine.FireShotAsync`](BattleShip.API/Services/GameEngine.cs) avant toute mutation ; rejet `409 Conflict` côté endpoint [`ShotEndpoints.cs`](BattleShip.API/Endpoints/ShotEndpoints.cs).
+- Hypothèse à vérifier : une partie au statut `PlayerWon` / `ComputerWon` refuse tout nouveau tir sans modifier `ShotCount` ni le statut.
+- Scénario, données ou commande :
+  ```bash
+  ./scripts/dotnet.sh test --filter "FullyQualifiedName~AfterGameFinished|FullyQualifiedName~AfterPlayerWins|FullyQualifiedName~AfterComputerWins|FullyQualifiedName~AfterPvpGameFinished|FullyQualifiedName~PostShotAfter|FullyQualifiedName~PostPowerUpAfterGameFinished"
+  ```
+  Tests automatisés :
+  - `GameEngineShotTests.FireShotAsync_AfterPlayerWins_ThrowsConflictWithoutChangingState`
+  - `GameEngineShotTests.FireShotAsync_AfterComputerWins_ThrowsConflictWithoutChangingState`
+  - `GameEngineShotTests.FireShotAsync_AfterPvpGameFinished_ThrowsConflictWithoutChangingState`
+  - `GameEnginePowerUpTests.UsePowerUpAsync_AfterGameFinished_ThrowsConflictWithoutChangingState`
+  - `FireShotEndpointTests.PostShotAfterPlayerWins_Returns409`
+  - `FireShotEndpointTests.PostShotAfterComputerWins_Returns409`
+  - `FireShotEndpointTests.PostPvpShotAfterGameFinished_Returns409`
+  - `PowerUpEndpointTests.PostPowerUpAfterGameFinished_Returns409`
+  Essais manuels : [`api.http`](api.http) — scénarios « tir / power-up après fin de partie »
+- Résultat attendu avant exécution :
+  - Domaine : `GameConflictException`, `ShotCount` et `Status` inchangés après la tentative.
+  - API : HTTP `409 Conflict` sur `POST /api/games/{id}/shots` et `POST /api/games/{id}/powerups` après fin de partie (PvE joueur, PvE ordinateur, PvP).
+- Erreur que ce contrôle pourrait détecter : garde absente ou placée après mutation ; statut gagnant encore jouable ; `ShotCount` qui s'incrémente malgré le refus ; code HTTP incorrect (200 ou 500).
+- Résultat réellement observé : les deux tests passent — le moteur lève `GameConflictException` dès `IsFinished()`, l'endpoint renvoie `409` sans toucher à l'état persisté.
+- Décision et justification : la règle du référentiel (« aucun nouveau coup après la fin de partie ») est validée côté domaine et API ; on conserve la vérification dans `GameEngine` plutôt que dans l'endpoint seul, pour que toute voie d'appel (y compris `PlayComputerTurnAsync`) respecte la même invariante.
+- Preuves reproductibles et liens vers les commits :
+  - `./scripts/dotnet.sh test --filter "FullyQualifiedName~FireShot"`
+  - [`BattleShip.API/Services/GameEngine.cs`](BattleShip.API/Services/GameEngine.cs) lignes 136–137
+- Après correction éventuelle : résultat avant / après : tests ajoutés après revue de conformité — ils échoueraient si la garde `IsFinished()` était retirée ou déplacée après `ResolveShot` ou `ResolvePowerUpForShooterAsync`.
+- Limites et points non vérifiés : les essais manuels `api.http` supposent une partie déjà terminée (non reproductibles en curl pur sans jouer jusqu'à la fin).

@@ -110,6 +110,43 @@ Content-Type: application/json
   "y": 7
 }
 
+### PvE — tir apres victoire joueur (409, prerequis status PlayerWon)
+# Reproductible manuellement :
+# 1) Creer une partie 5x5, placer la flotte, jouer jusqu'a couler la flotte adverse.
+# 2) Verifier : GET {{api}}/api/games/{{pveGameId}} -> status PlayerWon
+# 3) Rejouer un tir :
+POST {{api}}/api/games/{{pveGameId}}/shots
+Content-Type: application/json
+
+{
+  "x": 1,
+  "y": 1
+}
+
+### PvE — power-up apres fin de partie (409, prerequis status PlayerWon)
+# Meme prerequis que ci-dessus (partie terminee).
+POST {{api}}/api/games/{{pveGameId}}/powerups
+Content-Type: application/json
+
+{
+  "shipName": "Porte-avions",
+  "orientation": "Row",
+  "index": 0
+}
+
+### PvP — tir apres fin de partie (409, prerequis status Player1Won ou Player2Won)
+# 1) Terminer une partie PvP (les deux flottes placees, un joueur coule l'autre).
+# 2) Verifier : GET {{api}}/api/games/{{pvpGameId}} -> status Player1Won ou Player2Won
+# 3) Rejouer un tir :
+POST {{api}}/api/games/{{pvpGameId}}/shots
+Content-Type: application/json
+X-Player-Token: {{player1Token}}
+
+{
+  "x": 1,
+  "y": 1
+}
+
 ### PvP — tir joueur 1 (header obligatoire, status Player1Turn)
 POST {{api}}/api/games/{{pvpGameId}}/shots
 Content-Type: application/json
