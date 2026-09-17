@@ -60,8 +60,8 @@ Résultats : onglet **Actions** du dépôt [github.com/LennyGonzales/9.2.2-battl
 - Essais manuels : [`api.http`](api.http)
 - Décisions d'architecture : [`docs/adr/`](docs/adr/)
 - Contexte projet : [`CONTEXTE-IA.md`](CONTEXTE-IA.md)
-- Échanges IA : [`PROMPTS.md`](PROMPTS.md)
-- Revues IA : [`REVUE-IA.md`](REVUE-IA.md)
+- Échanges IA : [`PROMPTS.md`](PROMPTS.md) (backend) et [`PROMPTS-FRONT.md`](PROMPTS-FRONT.md) (frontend)
+- Revues IA : [`REVUE-IA.md`](REVUE-IA.md) (backend) et [`REVUE-IA-FRONT.md`](REVUE-IA-FRONT.md) (frontend)
 
 ## API — POST /api/games
 
@@ -115,7 +115,7 @@ curl -i -X POST http://localhost:8080/api/games/$ID/join
 curl -i http://localhost:8080/api/games/$ID
 ```
 
-Les routes `shots` et `board/*` utiliseront le header `X-Player-Token` en PvP (à implémenter).
+Les routes `shots` et `board/*` utilisent le header `X-Player-Token` en PvP.
 
 ## Stats gRPC — `GameStats.GetGameStats`
 

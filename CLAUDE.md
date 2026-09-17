@@ -7,15 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 School project (binôme, graded on code quality, decisions, and verifications): a Battleship ("Bataille Navale")
 game in C# / ASP.NET Core on .NET 10, split into a Minimal API backend and a Blazor WebAssembly frontend.
 
-**Current state**: `BattleShip.App` now has a full, playable front end (Blazor WebAssembly) built against a
-client-side mock — see "Front-end mock mode" below. `BattleShip.API` is still unmodified `dotnet new`
-template code (the default weather-forecast endpoint) — the real game endpoints, FluentValidation, and
-gRPC-Web service described in `PROMPT-INIT.md` are not yet implemented. `BattleShip.Models` now has real
-shared contracts under `Models/Contracts/` (mirroring `swagger.yaml`) alongside the still-empty domain
-layer. `PROMPT-INIT.md` at the repo root is the authoritative (French) spec for the target architecture,
-layering rules, API/DTO contracts, gRPC-Web contract, and required ADRs — read it before adding backend
-domain logic. Only `docs/adr/0005-conteneurisation-docker.md` exists so far; ADRs 0001–0004 (layering, game
-storage, REST contract, gRPC operation) described in `PROMPT-INIT.md` are still to be written.
+**Current state**: the game is fully implemented end-to-end. `BattleShip.API` has the real Minimal API
+endpoints (fleet placement, shots, power-ups, game lifecycle), FluentValidation validators called explicitly
+per endpoint, and a working gRPC-Web service (`GameStatsGrpcService`). `BattleShip.Models` has both the full
+domain layer (`Models/Domain/`: `Game`, `Board`, `Ship`, power-ups, etc.) and the shared contracts under
+`Models/Contracts/` (mirroring `swagger.yaml`). `BattleShip.App` is a full, playable Blazor WebAssembly front
+end that talks to the real API by default — see "Front-end mock mode" below for the client-side mock still
+kept behind the same interface. `PROMPT-INIT.md` at the repo root remains the authoritative (French) spec for
+the target architecture, layering rules, API/DTO contracts, gRPC-Web contract, and required ADRs. All ADRs
+0001–0007 now exist under `docs/adr/` (0001 layering, 0002 game storage, 0003 REST contract, 0004 gRPC
+statistics, 0005 Docker environment, 0006 game modes, 0007 ship power-ups).
 
 `swagger.yaml` at the repo root already documents the target REST contract (routes, DTOs, HTTP codes) ahead of
 the implementation — treat it as the contract to implement against, not as documentation of existing behavior.
@@ -81,17 +82,18 @@ Key contract rules to preserve when implementing the domain (see `PROMPT-INIT.md
 ### Front-end mock mode
 
 `BattleShip.App/Services/IGameApiClient.cs` has two implementations, selected by the `UseMockApi` flag in
-`wwwroot/appsettings.json` (default `true`) via a DI switch in `Program.cs`:
+`wwwroot/appsettings.json` (default `false`, now that `BattleShip.API`'s real endpoints exist) via a DI
+switch in `Program.cs`:
 - `MockGameApiClient` — a full in-memory Battleship engine (fleet placement, shot resolution, a computer
-  opponent) that makes the UI playable today without a real backend. This deliberately holds client-side
+  opponent), kept as an offline/demo fallback behind the same interface. This deliberately holds client-side
   game rules behind the `IGameApiClient` interface — not a `PROMPT-INIT.md` layering violation, since the
-  real `BattleShip.API` remains the only server-authoritative implementation once it exists.
+  real `BattleShip.API` remains the only server-authoritative implementation.
 - `HttpGameApiClient` — the real implementation, calling the routes in `swagger.yaml`.
 
-Flip `UseMockApi` to `false` once `BattleShip.API`'s real endpoints exist. In Docker, the app's
+Set `UseMockApi` to `true` only to run the front end offline against the mock. In Docker, the app's
 `wwwroot/appsettings.json` is generated at build time by `BattleShip.App/Dockerfile`'s `ARG UseMockApi`
-(default `true`, plumbed through `docker-compose.yml`'s `app.build.args`) — set that build arg, not the
-checked-in file, when building the production image.
+(default `false`, plumbed through `docker-compose.yml`'s `app.build.args`) — set that build arg, not the
+checked-in file, when building the image.
 
 ## Documentation map
 

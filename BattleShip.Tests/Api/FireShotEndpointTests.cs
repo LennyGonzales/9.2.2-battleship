@@ -113,7 +113,7 @@ public class FireShotEndpointTests : IClassFixture<WebApplicationFactory<Program
         var joined = await joinResponse.Content.ReadFromJsonAsync<JoinGameDto>(JsonOptions);
         Assert.NotNull(joined);
 
-        await PlaceFleetAsync(created.Id, created.PlayerToken);
+        await PlaceFleetAsync(created.Id, created.PlayerToken!);
         await PlaceFleetAsync(created.Id, joined.PlayerToken);
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/games/{created.Id}/shots")

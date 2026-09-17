@@ -31,7 +31,7 @@ public class GameEnginePlacementTests
         var game = await engine.CreateGameAsync(new CreateGameRequest(10, Difficulty.Normal));
         var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
 
-        AssertFleetIsValid(updated.Player1Board);
+        AssertFleetIsValid(updated.Player1Board!);
         AssertFleetIsValid(updated.Player2Board!);
     }
 
@@ -45,7 +45,7 @@ public class GameEnginePlacementTests
         var game = await engine.CreateGameAsync(null);
         var updated = await engine.PlaceFleetAsync(game.Id, Participant.Player1, FleetTestData.ValidFleet);
 
-        var playerCells = GetShipCells(updated.Player1Board);
+        var playerCells = GetShipCells(updated.Player1Board!);
         var computerCells = GetShipCells(updated.Player2Board!);
 
         Assert.NotEqual(playerCells, computerCells);
