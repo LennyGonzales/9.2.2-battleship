@@ -1,5 +1,6 @@
 using BattleShip.Models.Contracts;
 using BattleShip.Models.Domain;
+using System.Linq;
 
 namespace BattleShip.API.Services;
 
@@ -48,8 +49,12 @@ public static class GameMapper
             }
         }
 
-        return new BoardDto(owner, board.Size, cells);
+        var ships = owner == BoardOwner.Player ? ToShipStatusDtos(board) : null;
+        return new BoardDto(owner, board.Size, cells, ships);
     }
+
+    private static IReadOnlyList<ShipStatusDto> ToShipStatusDtos(Board board) =>
+        board.Ships.Select(s => new ShipStatusDto(s.Name, s.Length, s.PowerUpType, s.IsSunk, s.PowerUpUsed)).ToList();
 
     private static VisibleCellState ToVisibleCellState(CellState state, BoardOwner owner) => (owner, state) switch
     {
@@ -61,7 +66,10 @@ public static class GameMapper
         (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
         (BoardOwner.Opponent, CellState.Obstacle) => VisibleCellState.Unknown,
         (_, CellState.Obstacle) => VisibleCellState.Obstacle,
-        (_, CellState.ObstacleHit) => VisibleCellState.Obstacle,
+        (_, CellState.ObstacleHit) => VisibleCellState.ObstacleHit,
+        (BoardOwner.Player, CellState.Decoy) => VisibleCellState.Ship,
+        (BoardOwner.Opponent, CellState.Decoy) => VisibleCellState.Unknown,
+        (_, CellState.DecoyHit) => VisibleCellState.Hit,
         (_, CellState.Empty) => VisibleCellState.Empty,
         (_, CellState.Ship) => VisibleCellState.Ship,
         (_, CellState.Hit) => VisibleCellState.Hit,

@@ -6,7 +6,7 @@ namespace BattleShip.App.Services;
 
 public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServiceProvider services, SoundFx sfx)
 {
-    private readonly List<ShotResultDto> _history = [];
+    private readonly List<TurnLogEntry> _history = [];
     private bool _finishCuePlayed;
 
     public GameDto? Game { get; private set; }
@@ -17,7 +17,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
     public bool IsBusy { get; private set; }
     public string? PlayerToken { get; private set; }
     public PlayerSide? MySide { get; private set; }
-    public IReadOnlyList<ShotResultDto> History => _history;
+    public IReadOnlyList<TurnLogEntry> History => _history;
 
     public bool CanFire => !IsBusy && Game is not null && MySide is not null && Game.CurrentTurn == MySide;
     public bool AwaitingOpponent => Game?.Status == GameStatus.Waiting;
@@ -167,20 +167,15 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         }
 
         var result = await client.FireShotAsync(Game.Id, new ShotRequest(x, y), PlayerToken);
-        _history.Add(result);
+        _history.Add(TurnLogEntry.FromShot(result));
+
         await PlayShotCueAsync(result);
 
-        if (result.Status is GameStatus.ComputerTurn)
+
+        if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
         {
-            Game = await client.GetGameAsync(Game.Id);
-            await RefreshBoardsAsync();
-            Changed?.Invoke();
-
             await Task.Delay(TimeSpan.FromSeconds(2));
-
-            var computerResult = await client.FireShotAsync(Game.Id, new ShotRequest(null, null), PlayerToken);
-            _history.Add(computerResult);
-            await PlayShotCueAsync(computerResult);
+            await PlayComputerTurnAsync();
         }
 
         Game = await client.GetGameAsync(Game.Id);
@@ -188,6 +183,43 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         await RefreshStatsAsync();
         await PlayFinishIfNeededAsync();
     });
+
+    public Task UsePowerUpAsync(UsePowerUpRequest request) => RunAsync(async () =>
+    {
+        if (Game is null)
+        {
+            return;
+        }
+
+        var result = await client.UsePowerUpAsync(Game.Id, request, PlayerToken);
+        _history.Add(TurnLogEntry.FromPowerUp(result));
+
+        if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
+        {
+            await PlayComputerTurnAsync();
+        }
+
+        Game = await client.GetGameAsync(Game.Id);
+        await RefreshBoardsAsync();
+    });
+
+    private async Task PlayComputerTurnAsync()
+    {
+        if (Game is null)
+        {
+            return;
+        }
+
+        var computerResult = await client.PlayComputerTurnAsync(Game.Id, PlayerToken);
+        if (computerResult.UsedPowerUp)
+        {
+            _history.Add(TurnLogEntry.FromPowerUp(computerResult.PowerUp!));
+            return;
+        }
+
+        _history.Add(TurnLogEntry.FromShot(computerResult.Shot!));
+        await PlayShotCueAsync(computerResult.Shot!);
+    }
 
     private async Task RefreshStatsAsync(CancellationToken ct = default)
     {
@@ -325,6 +357,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         var sunk = 0;
         var hits = 0;
         var misses = 0;
+        var obstacles = 0;
 
         foreach (var cell in after.Cells)
         {
@@ -344,6 +377,9 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
                 case VisibleCellState.Miss:
                     misses++;
                     break;
+                case VisibleCellState.ObstacleHit:
+                    obstacles++;
+                    break;
             }
         }
 
@@ -355,6 +391,11 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         if (hits > 0)
         {
             return "incoming-hit";
+        }
+
+        if (obstacles > 0)
+        {
+            return "obstacle";
         }
 
         return misses > 0 ? "incoming-miss" : null;

@@ -9,5 +9,7 @@ public enum CellState
     Sunk,
     Unknown,
     Obstacle,
-    ObstacleHit
+    ObstacleHit,
+    Decoy,
+    DecoyHit
 }

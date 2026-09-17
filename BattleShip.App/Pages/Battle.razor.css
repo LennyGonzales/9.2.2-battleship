@@ -45,6 +45,28 @@
     font-size: 2rem;
 }
 
+.power-up-target {
+    margin: 1rem 0;
+}
+
+.power-up-target__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+.power-up-target__controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.power-up-target__hint {
+    align-self: center;
+}
+
 @media (prefers-reduced-motion: no-preference) {
     .battle__overlay {
         animation: overlay-in 0.3s ease-out;

@@ -1,43 +1,58 @@
 <section class="radar-panel radar-grid-panel">
     <header class="hud-label radar-grid-panel__title">@Title</header>
-    <div class="radar-grid" style="--grid-size: @Board.Size">
-        @if (Board.Owner == BoardOwner.Opponent)
-        {
-            <div class="radar-sweep" aria-hidden="true"></div>
-            <div class="radar-scanlines" aria-hidden="true"></div>
-        }
-        @foreach (var cell in Board.Cells)
-        {
-            <button type="button"
-                    @key="(cell.X, cell.Y)"
-                    class="radar-cell @CellClass(cell.State)"
-                    disabled="@(!Interactive || !IsTargetable(cell.State))"
-                    @onclick="() => HandleClickAsync(cell)"
-                    aria-label="@($"{(char)('A' + cell.X)}{cell.Y + 1}")">
-                @if (cell.State == VisibleCellState.Miss)
-                {
-                    <span class="radar-cell__splash" aria-hidden="true"></span>
-                    <span class="radar-cell__droplets" aria-hidden="true"></span>
-                }
-                else if (cell.State == VisibleCellState.Hit)
-                {
-                    <span class="radar-cell__burst" aria-hidden="true"></span>
-                    <span class="radar-cell__sparks" aria-hidden="true"></span>
-                    <span class="radar-cell__ping" aria-hidden="true"></span>
-                }
-                else if (cell.State == VisibleCellState.Sunk)
-                {
-                    <span class="radar-cell__vortex" aria-hidden="true"></span>
-                    <span class="radar-cell__rift" aria-hidden="true"></span>
-                    <span class="radar-cell__ping radar-cell__ping--abyss" aria-hidden="true"></span>
-                }
-                else if (IsStruckIsland(cell.State))
-                {
-                    <span class="radar-cell__dust" aria-hidden="true"></span>
-                    <span class="radar-cell__shards" aria-hidden="true"></span>
-                }
-            </button>
-        }
+    <div class="radar-board">
+        <span class="radar-board__corner" aria-hidden="true"></span>
+        <div class="radar-board__cols" style="--grid-size: @Board.Size">
+            @for (var x = 0; x < Board.Size; x++)
+            {
+                <span class="radar-board__label">@((char)('A' + x))</span>
+            }
+        </div>
+        <div class="radar-board__rows" style="--grid-size: @Board.Size">
+            @for (var y = 0; y < Board.Size; y++)
+            {
+                <span class="radar-board__label">@(y + 1)</span>
+            }
+        </div>
+        <div class="radar-grid" style="--grid-size: @Board.Size">
+            @if (Board.Owner == BoardOwner.Opponent)
+            {
+                <div class="radar-sweep" aria-hidden="true"></div>
+                <div class="radar-scanlines" aria-hidden="true"></div>
+            }
+            @foreach (var cell in Board.Cells)
+            {
+                <button type="button"
+                        @key="(cell.X, cell.Y)"
+                        class="radar-cell @CellClass(cell.State)"
+                        disabled="@(!Interactive || !IsTargetable(cell.State))"
+                        @onclick="() => HandleClickAsync(cell)"
+                        aria-label="@($"{(char)('A' + cell.X)}{cell.Y + 1}")">
+                    @if (cell.State == VisibleCellState.Miss)
+                    {
+                        <span class="radar-cell__splash" aria-hidden="true"></span>
+                        <span class="radar-cell__droplets" aria-hidden="true"></span>
+                    }
+                    else if (cell.State == VisibleCellState.Hit)
+                    {
+                        <span class="radar-cell__burst" aria-hidden="true"></span>
+                        <span class="radar-cell__sparks" aria-hidden="true"></span>
+                        <span class="radar-cell__ping" aria-hidden="true"></span>
+                    }
+                    else if (cell.State == VisibleCellState.Sunk)
+                    {
+                        <span class="radar-cell__vortex" aria-hidden="true"></span>
+                        <span class="radar-cell__rift" aria-hidden="true"></span>
+                        <span class="radar-cell__ping radar-cell__ping--abyss" aria-hidden="true"></span>
+                    }
+                    else if (IsStruckIsland(cell.State))
+                    {
+                        <span class="radar-cell__dust" aria-hidden="true"></span>
+                        <span class="radar-cell__shards" aria-hidden="true"></span>
+                    }
+                </button>
+            }
+        </div>
     </div>
 </section>
 
@@ -46,6 +61,7 @@
     [Parameter] public bool Interactive { get; set; }
     [Parameter] public EventCallback<(int X, int Y)> OnCellClick { get; set; }
     [Parameter] public string Title { get; set; } = "";
+    [Parameter] public Func<VisibleCellState, bool>? TargetPredicate { get; set; }
 
     private string CellClass(VisibleCellState state) => state switch
     {
@@ -55,15 +71,16 @@
         VisibleCellState.Miss => "radar-cell--miss",
         VisibleCellState.Hit => "radar-cell--hit",
         VisibleCellState.Sunk => "radar-cell--sunk",
-        VisibleCellState.Obstacle when IsStruckIsland(state) => "radar-cell--obstacle radar-cell--obstacle-struck",
+        VisibleCellState.ObstacleHit => "radar-cell--obstacle radar-cell--obstacle-struck",
         VisibleCellState.Obstacle => "radar-cell--obstacle",
         _ => "",
     };
 
-    private bool IsStruckIsland(VisibleCellState state) =>
-        state == VisibleCellState.Obstacle && Board.Owner == BoardOwner.Opponent;
+    private static bool IsStruckIsland(VisibleCellState state) => state == VisibleCellState.ObstacleHit;
 
-    private static bool IsTargetable(VisibleCellState state) => state == VisibleCellState.Unknown;
+    private bool IsTargetable(VisibleCellState state) => (TargetPredicate ?? DefaultTargetPredicate)(state);
+
+    private static bool DefaultTargetPredicate(VisibleCellState state) => state == VisibleCellState.Unknown;
 
     private async Task HandleClickAsync(CellDto cell)
     {

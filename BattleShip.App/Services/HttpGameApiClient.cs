@@ -70,6 +70,25 @@ public sealed class HttpGameApiClient(HttpClient http) : IGameApiClient
         return (await response.Content.ReadFromJsonAsync<ShotResultDto>(JsonOptions, ct))!;
     }
 
+    public async Task<PowerUpResultDto> UsePowerUpAsync(
+        Guid id, UsePowerUpRequest request, string? playerToken, CancellationToken ct = default)
+    {
+        using var httpRequest = CreateRequest(HttpMethod.Post, $"api/games/{id}/powerups", playerToken);
+        httpRequest.Content = JsonContent.Create(request, options: JsonOptions);
+        using var response = await http.SendAsync(httpRequest, ct);
+        await EnsureSuccessAsync(response, ct);
+        return (await response.Content.ReadFromJsonAsync<PowerUpResultDto>(JsonOptions, ct))!;
+    }
+
+    public async Task<ComputerTurnResultDto> PlayComputerTurnAsync(
+        Guid id, string? playerToken, CancellationToken ct = default)
+    {
+        using var request = CreateRequest(HttpMethod.Post, $"api/games/{id}/computer-turn", playerToken);
+        using var response = await http.SendAsync(request, ct);
+        await EnsureSuccessAsync(response, ct);
+        return (await response.Content.ReadFromJsonAsync<ComputerTurnResultDto>(JsonOptions, ct))!;
+    }
+
     private static HttpRequestMessage CreateRequest(HttpMethod method, string uri, string? playerToken)
     {
         var request = new HttpRequestMessage(method, uri);

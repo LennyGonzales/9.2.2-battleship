@@ -18,4 +18,10 @@ public interface IGameEngine
         int? x,
         int? y,
         CancellationToken cancellationToken = default);
+    Task<PowerUpTurnResult> UsePowerUpAsync(
+        Guid gameId,
+        Participant? caller,
+        UsePowerUpRequest request,
+        CancellationToken cancellationToken = default);
+    Task<ComputerTurnResult> PlayComputerTurnAsync(Guid gameId, CancellationToken cancellationToken = default);
 }

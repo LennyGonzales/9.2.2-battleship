@@ -27,6 +27,8 @@ tags:
     description: Lecture des grilles
   - name: Shots
     description: Coups joues
+  - name: PowerUps
+    description: Activation de power-ups et tours de l'ordinateur
 
 paths:
   /api/games:
@@ -181,6 +183,64 @@ paths:
                 $ref: '#/components/schemas/ShotResultDto'
         '400':
           $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/games/{id}/powerups:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+      - $ref: '#/components/parameters/PlayerToken'
+    post:
+      tags: [PowerUps]
+      summary: Utiliser le power-up d'un navire
+      description: |
+        Active le power-up d'un navire de la flotte de l'appelant : Recon
+        (Porte-avions), Torpedo (Torpilleur), TwinStrike (Sous-marin), Decoy
+        (Contre-torpilleur), DoubleStrike (Croiseur). Utilisable une seule
+        fois par navire et par partie, uniquement tant qu'il n'est pas coule.
+        Consomme le tour courant, comme un tir.
+      operationId: usePowerUp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsePowerUpRequest'
+      responses:
+        '200':
+          description: Power-up resolu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PowerUpResultDto'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/games/{id}/computer-turn:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    post:
+      tags: [PowerUps]
+      summary: Resoudre le tour de l'ordinateur (PvE)
+      description: |
+        Resout le tour de l'ordinateur : il choisit lui-meme, selon la
+        difficulte, entre tirer normalement ou utiliser un power-up.
+        Remplace, pour le front, l'ancien appel a POST /shots avec un corps
+        vide au tour de l'ordinateur.
+      operationId: playComputerTurn
+      responses:
+        '200':
+          description: Tour de l'ordinateur resolu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerTurnResultDto'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -354,8 +414,8 @@ components:
       type: string
       description: |
         Etat d'une cellule tel que le joueur a le droit de le voir.
-        Grille joueur : Empty, Ship, Hit, Sunk, Obstacle.
-        Grille adverse : Unknown, Miss, Hit, Sunk, Obstacle (Obstacle uniquement apres un tir dessus).
+        Grille joueur : Empty, Ship, Hit, Sunk, Obstacle, ObstacleHit.
+        Grille adverse : Unknown, Miss, Hit, Sunk, ObstacleHit (ObstacleHit uniquement apres un tir dessus).
       enum:
         - Unknown
         - Empty
@@ -364,6 +424,7 @@ components:
         - Hit
         - Sunk
         - Obstacle
+        - ObstacleHit
 
     BoardOwner:
       type: string
@@ -475,11 +536,27 @@ components:
         state:
           $ref: '#/components/schemas/VisibleCellState'
 
+    ShipStatusDto:
+      type: object
+      required: [name, length, powerUpType, isSunk, powerUpUsed]
+      properties:
+        name:
+          type: string
+        length:
+          type: integer
+        powerUpType:
+          $ref: '#/components/schemas/PowerUpType'
+        isSunk:
+          type: boolean
+        powerUpUsed:
+          type: boolean
+
     BoardDto:
       type: object
       description: |
         Grille et etats visibles. Le tableau cells contient size x size elements.
-        Pour la grille adverse, aucune cellule n'a l'etat Ship.
+        Pour la grille adverse, aucune cellule n'a l'etat Ship. ships n'est
+        renseigne que pour owner=Player (statut des power-ups de sa propre flotte).
       required: [owner, size, cells]
       properties:
         owner:
@@ -490,6 +567,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CellDto'
+        ships:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ShipStatusDto'
       example:
         owner: Opponent
         size: 10
@@ -558,6 +640,123 @@ components:
           sunkShipName: null
         shooter: Player
         status: ComputerTurn
+
+    PowerUpType:
+      type: string
+      description: |
+        Porte-avions -> Recon, Croiseur -> DoubleStrike,
+        Contre-torpilleur -> Decoy, Sous-marin -> TwinStrike, Torpilleur -> Torpedo.
+      enum: [Recon, Torpedo, TwinStrike, Decoy, DoubleStrike]
+
+    Orientation:
+      type: string
+      enum: [Row, Column]
+
+    Edge:
+      type: string
+      description: Bord d'entree de la torpille dans la ligne/colonne.
+      enum: [Low, High]
+
+    CellTarget:
+      type: object
+      required: [x, y]
+      properties:
+        x:
+          type: integer
+          minimum: 0
+        y:
+          type: integer
+          minimum: 0
+
+    UsePowerUpRequest:
+      type: object
+      description: |
+        Forme variable selon le navire cible :
+        Recon/Torpedo : orientation + index (Torpedo ajoute entryEdge).
+        TwinStrike/DoubleStrike : deux cases dans cells (TwinStrike : adjacentes).
+        Decoy : une case dans cells, adjacente a une case du contre-torpilleur, sur sa propre grille.
+      required: [shipName]
+      properties:
+        shipName:
+          type: string
+          enum: [Porte-avions, Croiseur, Contre-torpilleur, Sous-marin, Torpilleur]
+        orientation:
+          allOf:
+            - $ref: '#/components/schemas/Orientation'
+          nullable: true
+        index:
+          type: integer
+          minimum: 0
+          nullable: true
+        entryEdge:
+          allOf:
+            - $ref: '#/components/schemas/Edge'
+          nullable: true
+        cells:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/CellTarget'
+      example:
+        shipName: Porte-avions
+        orientation: Row
+        index: 4
+
+    ReconResultDto:
+      type: object
+      required: [orientation, index, hasContact]
+      properties:
+        orientation:
+          $ref: '#/components/schemas/Orientation'
+        index:
+          type: integer
+        hasContact:
+          type: boolean
+          description: Presence d'un navire ou d'un ilot sur la ligne/colonne, sans preciser ou.
+
+    PowerUpResultDto:
+      type: object
+      description: |
+        Un seul de recon/torpedo/cells est renseigne selon le type de power-up ;
+        aucun ne l'est pour Decoy (aucune information cote adversaire).
+      required: [shipName, type, actor, status]
+      properties:
+        shipName:
+          type: string
+        type:
+          $ref: '#/components/schemas/PowerUpType'
+        actor:
+          $ref: '#/components/schemas/Player'
+        status:
+          $ref: '#/components/schemas/GameStatus'
+        recon:
+          allOf:
+            - $ref: '#/components/schemas/ReconResultDto'
+          nullable: true
+        torpedo:
+          allOf:
+            - $ref: '#/components/schemas/ShotOutcomeDto'
+          nullable: true
+        cells:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ShotOutcomeDto'
+
+    ComputerTurnResultDto:
+      type: object
+      required: [usedPowerUp]
+      properties:
+        usedPowerUp:
+          type: boolean
+        shot:
+          allOf:
+            - $ref: '#/components/schemas/ShotResultDto'
+          nullable: true
+        powerUp:
+          allOf:
+            - $ref: '#/components/schemas/PowerUpResultDto'
+          nullable: true
 
     ProblemDetails:
       type: object
