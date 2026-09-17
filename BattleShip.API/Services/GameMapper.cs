@@ -66,7 +66,7 @@ public static class GameMapper
         (BoardOwner.Player, CellState.Miss) => VisibleCellState.Empty,
         (BoardOwner.Opponent, CellState.Obstacle) => VisibleCellState.Unknown,
         (_, CellState.Obstacle) => VisibleCellState.Obstacle,
-        (_, CellState.ObstacleHit) => VisibleCellState.Obstacle,
+        (_, CellState.ObstacleHit) => VisibleCellState.ObstacleHit,
         (BoardOwner.Player, CellState.Decoy) => VisibleCellState.Ship,
         (BoardOwner.Opponent, CellState.Decoy) => VisibleCellState.Unknown,
         (_, CellState.DecoyHit) => VisibleCellState.Hit,

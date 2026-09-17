@@ -70,9 +70,17 @@ else
                         </select>
                     </label>
                     <label>
-                        Index
-                        <input type="number" min="0" max="@(Session.Game!.BoardSize - 1)" @bind="_pendingIndex" />
+                        @(_pendingOrientation == Orientation.Column ? "Colonne" : "Ligne")
+                        <input type="number"
+                               min="1"
+                               max="@Session.Game!.BoardSize"
+                               @bind="_pendingIndex"
+                               @bind:event="oninput" />
                     </label>
+                    @if (LineTargetHint is { } hint)
+                    {
+                        <span class="hud-label power-up-target__hint">@hint</span>
+                    }
                     @if (pendingShip.PowerUpType == PowerUpType.Torpedo)
                     {
                         <label>
@@ -160,6 +168,16 @@ else
     private bool IsTargetingCells => _pendingPowerUp?.PowerUpType is PowerUpType.TwinStrike or PowerUpType.DoubleStrike;
     private bool IsTargetingDecoy => _pendingPowerUp?.PowerUpType == PowerUpType.Decoy;
 
+    private string? LineTargetHint =>
+        _pendingIndex is int index
+        && Session.Game is { } game
+        && index >= 1
+        && index <= game.BoardSize
+            ? _pendingOrientation == Orientation.Column
+                ? $"Colonne {(char)('A' + index - 1)}"
+                : $"Ligne {index}"
+            : null;
+
     private void SelectPowerUp(ShipStatusDto ship)
     {
         _pendingPowerUp = ship;
@@ -206,12 +224,20 @@ else
 
     private async Task SubmitLinePowerUpAsync()
     {
-        if (_pendingPowerUp is not { } ship || _pendingOrientation is not { } orientation || _pendingIndex is not { } index)
+        if (_pendingPowerUp is not { } ship
+            || _pendingOrientation is not { } orientation
+            || _pendingIndex is not { } index
+            || Session.Game is null)
         {
             return;
         }
 
-        await SubmitPowerUpAsync(ship, orientation: orientation, index: index, edge: _pendingEdge);
+        if (index < 1 || index > Session.Game.BoardSize)
+        {
+            return;
+        }
+
+        await SubmitPowerUpAsync(ship, orientation: orientation, index: index - 1, edge: _pendingEdge);
     }
 
     private async Task SubmitPowerUpAsync(

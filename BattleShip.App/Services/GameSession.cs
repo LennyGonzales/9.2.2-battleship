@@ -174,18 +174,8 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
 
         if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
         {
-            await Task.Delay(TimeSpan.FromSeconds(2));          
-            await PlayComputerTurnAsync();
-
-            Game = await client.GetGameAsync(Game.Id);
-            await RefreshBoardsAsync();
-            Changed?.Invoke();
-
             await Task.Delay(TimeSpan.FromSeconds(2));
-
-            var computerResult = await client.FireShotAsync(Game.Id, new ShotRequest(null, null), PlayerToken);
-            _history.Add(computerResult);
-            await PlayShotCueAsync(computerResult);
+            await PlayComputerTurnAsync();
         }
 
         Game = await client.GetGameAsync(Game.Id);
@@ -221,9 +211,14 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         }
 
         var computerResult = await client.PlayComputerTurnAsync(Game.Id, PlayerToken);
-        _history.Add(computerResult.UsedPowerUp
-            ? TurnLogEntry.FromPowerUp(computerResult.PowerUp!)
-            : TurnLogEntry.FromShot(computerResult.Shot!));
+        if (computerResult.UsedPowerUp)
+        {
+            _history.Add(TurnLogEntry.FromPowerUp(computerResult.PowerUp!));
+            return;
+        }
+
+        _history.Add(TurnLogEntry.FromShot(computerResult.Shot!));
+        await PlayShotCueAsync(computerResult.Shot!);
     }
 
     private async Task RefreshStatsAsync(CancellationToken ct = default)
@@ -362,6 +357,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         var sunk = 0;
         var hits = 0;
         var misses = 0;
+        var obstacles = 0;
 
         foreach (var cell in after.Cells)
         {
@@ -381,6 +377,9 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
                 case VisibleCellState.Miss:
                     misses++;
                     break;
+                case VisibleCellState.ObstacleHit:
+                    obstacles++;
+                    break;
             }
         }
 
@@ -392,6 +391,11 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
         if (hits > 0)
         {
             return "incoming-hit";
+        }
+
+        if (obstacles > 0)
+        {
+            return "obstacle";
         }
 
         return misses > 0 ? "incoming-miss" : null;

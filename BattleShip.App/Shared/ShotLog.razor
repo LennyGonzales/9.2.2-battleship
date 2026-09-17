@@ -51,10 +51,13 @@
         };
     }
 
+    private static string FormatLine(Orientation orientation, int index) =>
+        orientation == Orientation.Row ? $"ligne {index + 1}" : $"colonne {(char)('A' + index)}";
+
     private static string FormatPowerUp(PowerUpResultDto powerUp) => powerUp.Type switch
     {
         PowerUpType.Recon when powerUp.Recon is { } recon =>
-            $"{powerUp.ShipName} — reconnaissance {(recon.Orientation == Orientation.Row ? "ligne" : "colonne")} {recon.Index + 1} : {(recon.HasContact ? "contact" : "rien")}",
+            $"{powerUp.ShipName} — reconnaissance {FormatLine(recon.Orientation, recon.Index)} : {(recon.HasContact ? "contact" : "rien")}",
         PowerUpType.Torpedo when powerUp.Torpedo is { } torpedo => $"{powerUp.ShipName} — torpille : {FormatOutcome(torpedo)}",
         PowerUpType.Torpedo => $"{powerUp.ShipName} — torpille : rien touche",
         PowerUpType.TwinStrike or PowerUpType.DoubleStrike when powerUp.Cells is { } cells =>
