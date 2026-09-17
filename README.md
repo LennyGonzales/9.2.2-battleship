@@ -149,4 +149,10 @@ docker compose up --build
 3. Le panneau HUD affiche les compteurs gRPC (tirs/touches des deux côtés)
 4. DevTools → Network : requête gRPC-Web vers `localhost:8080`
 
-Les stats gRPC ne s'affichent pas en mode mock (`UseMockApi: true`).
+**Barre de recherche (header)** — consultation stats via gRPC uniquement :
+
+1. Copier l'identifiant depuis l'URL (`/battle/{id}`) et le coller dans le champ **Mission** → panneau stats sous le header
+2. Saisir `test` → `InvalidArgument`
+3. Saisir un UUID valide mais inconnu → `NotFound`
+
+La barre de recherche est désactivée en mode mock (`UseMockApi: true`).

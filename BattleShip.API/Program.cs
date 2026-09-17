@@ -26,7 +26,13 @@ builder.Services.AddCors(options =>
             ?? ["http://localhost:8081"];
         policy.WithOrigins(origins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders(
+                "Grpc-Status",
+                "Grpc-Message",
+                "Grpc-Encoding",
+                "Grpc-Accept-Encoding",
+                "Grpc-Status-Details-Bin");
     });
 });
 
@@ -52,8 +58,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseCors();
 app.UseGrpcWeb();
+app.UseCors();
 app.MapGrpcService<GameStatsGrpcService>().EnableGrpcWeb();
 app.MapGameEndpoints();
 app.MapFleetEndpoints();

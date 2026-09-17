@@ -1,0 +1,71 @@
+@implements IDisposable
+@inject MissionStatsLookup Lookup
+
+@if (Lookup.Stats is not null || !string.IsNullOrWhiteSpace(Lookup.ErrorMessage))
+{
+    <section class="mission-stats-panel" aria-live="polite">
+        @if (!string.IsNullOrWhiteSpace(Lookup.ErrorMessage))
+        {
+            <div class="mission-stats-panel__error">
+                <div class="alert-banner" role="alert">
+                    <span class="alert-banner__icon" aria-hidden="true">⚠</span>
+                    <span class="alert-banner__text">@Lookup.ErrorMessage</span>
+                </div>
+                <button type="button"
+                        class="mission-stats-panel__close"
+                        aria-label="Fermer le message"
+                        @onclick="Lookup.Clear">
+                    ×
+                </button>
+            </div>
+        }
+        else if (Lookup.Stats is not null)
+        {
+            <div class="mission-stats-panel__content radar-panel">
+                <header class="mission-stats-panel__header">
+                    <span class="hud-label">Stats mission (gRPC)</span>
+                    <button type="button"
+                            class="mission-stats-panel__close"
+                            aria-label="Fermer les stats"
+                            @onclick="Lookup.Clear">
+                        ×
+                    </button>
+                </header>
+                <div class="mission-stats-panel__grid">
+                    <div class="mission-stats-panel__item">
+                        <span class="hud-label">Statut</span>
+                        <strong>@Lookup.Stats.Status</strong>
+                    </div>
+                    <div class="mission-stats-panel__item">
+                        <span class="hud-label">Tirs joueur</span>
+                        <strong>@Lookup.Stats.PlayerShots</strong>
+                    </div>
+                    <div class="mission-stats-panel__item">
+                        <span class="hud-label">Tirs adversaire</span>
+                        <strong>@Lookup.Stats.ComputerShots</strong>
+                    </div>
+                    <div class="mission-stats-panel__item">
+                        <span class="hud-label">Touches joueur</span>
+                        <strong>@Lookup.Stats.PlayerHits</strong>
+                    </div>
+                    <div class="mission-stats-panel__item">
+                        <span class="hud-label">Touches adversaire</span>
+                        <strong>@Lookup.Stats.ComputerHits</strong>
+                    </div>
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Lookup.Changed += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        Lookup.Changed -= StateHasChanged;
+    }
+}

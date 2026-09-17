@@ -1,11 +1,35 @@
 ﻿@implements IDisposable
 @inject SoundFx Sfx
+@inject MissionStatsLookup Lookup
 
 <header class="war-room__header">
     <NavLink href="" Match="NavLinkMatch.All" class="war-room__brand-link">
         <span class="war-room__brand-mark" aria-hidden="true">⌖</span>
         BATTLESHIP
     </NavLink>
+
+    @if (Lookup.IsAvailable)
+    {
+        <form class="mission-search" @onsubmit="LookupAsync" @onsubmit:preventDefault>
+            <label class="hud-label mission-search__label" for="mission-id">Mission</label>
+            <input id="mission-id"
+                   class="mission-search__input"
+                   @bind="missionId"
+                   placeholder="Identifiant de partie"
+                   disabled="@Lookup.IsBusy"
+                   @onkeydown="HandleKeyDown" />
+            <button type="submit"
+                    class="btn-brass mission-search__submit"
+                    disabled="@(Lookup.IsBusy || string.IsNullOrWhiteSpace(missionId))">
+                @(Lookup.IsBusy ? "..." : "Consulter")
+            </button>
+        </form>
+    }
+    else
+    {
+        <span class="hud-label mission-search__hint">Stats gRPC — API reelle requise</span>
+    }
+
     <button type="button"
             class="sfx-toggle @(Sfx.Muted ? "sfx-toggle--muted" : "")"
             aria-pressed="@Sfx.Muted"
@@ -16,12 +40,32 @@
 </header>
 
 @code {
+    private string missionId = string.Empty;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             Sfx.Changed += StateHasChanged;
             await Sfx.InitializeAsync();
+        }
+    }
+
+    private async Task LookupAsync()
+    {
+        if (string.IsNullOrWhiteSpace(missionId))
+        {
+            return;
+        }
+
+        await Lookup.LookupAsync(missionId);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await LookupAsync();
         }
     }
 

@@ -3,6 +3,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+    flex-wrap: wrap;
     background: var(--br-bg-elevated);
     border-bottom: 1px solid var(--br-olive);
     padding: 0.85rem 1.5rem;
@@ -18,11 +19,58 @@
     color: var(--br-brass);
     text-decoration: none;
     font-size: 1.1rem;
+    flex-shrink: 0;
 }
 
 .war-room__brand-mark {
     color: var(--br-radar);
     font-size: 1.3rem;
+}
+
+.mission-search {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 12rem;
+    max-width: 36rem;
+}
+
+.mission-search__label {
+    flex-shrink: 0;
+}
+
+.mission-search__input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-hud);
+    font-size: 0.85rem;
+    color: var(--br-text);
+    background: var(--br-bg);
+    border: 1px solid var(--br-olive-light);
+    border-radius: 3px;
+    padding: 0.45rem 0.65rem;
+}
+
+.mission-search__input:focus {
+    outline: none;
+    border-color: var(--br-radar);
+}
+
+.mission-search__input:disabled {
+    opacity: 0.6;
+}
+
+.mission-search__submit {
+    flex-shrink: 0;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.75rem;
+}
+
+.mission-search__hint {
+    flex: 1;
+    text-align: center;
+    opacity: 0.75;
 }
 
 .sfx-toggle {
@@ -36,6 +84,7 @@
     border-radius: 3px;
     padding: 0.35rem 0.7rem;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .sfx-toggle:hover {
@@ -45,4 +94,20 @@
 .sfx-toggle--muted {
     color: var(--br-text-dim);
     border-color: var(--br-olive);
+}
+
+@media (max-width: 640px) {
+    .war-room__header {
+        padding: 0.85rem 1rem;
+    }
+
+    .mission-search {
+        order: 3;
+        width: 100%;
+        max-width: none;
+    }
+
+    .mission-search__label {
+        display: none;
+    }
 }

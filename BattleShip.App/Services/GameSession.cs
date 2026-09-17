@@ -236,14 +236,8 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
             return;
         }
 
-        try
-        {
-            Stats = await statsClient.GetGameStatsAsync(Game.Id, ct);
-        }
-        catch
-        {
-            Stats = null;
-        }
+        var result = await statsClient.GetGameStatsAsync(Game.Id.ToString(), ct);
+        Stats = result.Stats;
     }
 
     private async Task RefreshBoardsAsync()

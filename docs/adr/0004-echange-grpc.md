@@ -38,8 +38,10 @@ Pas de token dans le proto — stats globales de la partie (spec cours).
 
 ## Conséquences
 
-- Les stats ne figurent pas dans [`swagger.yaml`](../../swagger.yaml) ; démo via tests d'intégration et **grpcurl**
-- Le front Blazor consommera ce service dans une passe ultérieure (`Grpc.Net.Client.Web`)
+- Les stats ne figurent pas dans [`swagger.yaml`](../../swagger.yaml)
+- Le front Blazor consomme ce service via `Grpc.Net.Client.Web` :
+  - **En combat** : refresh automatique dans `StatusConsole` après chaque tir (`GameSession`)
+  - **Header** : barre « Mission » → `MissionStatsLookup` → gRPC direct (sans REST), pour consulter ou retrouver une partie par identifiant
 - `BattleShip.Models` reste sans dépendance gRPC
 
 ## Vérification
@@ -48,4 +50,6 @@ Pas de token dans le proto — stats globales de la partie (spec cours).
 ./scripts/dotnet.sh test --filter "FullyQualifiedName~GameStats"
 grpcurl -plaintext -d '{"game_id":"<uuid>"}' \
   localhost:8080 battleship.GameStats/GetGameStats
+docker compose up --build
+# Navigateur : header Mission → id valide (succès), "test" (InvalidArgument), UUID inconnu (NotFound)
 ```

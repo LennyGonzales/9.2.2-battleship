@@ -33,5 +33,6 @@ else
 }
 
 builder.Services.AddScoped<SoundFx>();
+builder.Services.AddScoped<MissionStatsLookup>();
 builder.Services.AddScoped<GameSession>();
 await builder.Build().RunAsync();
