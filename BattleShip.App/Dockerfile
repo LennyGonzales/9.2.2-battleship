@@ -11,6 +11,7 @@ RUN dotnet restore BattleShip.App/BattleShip.App.csproj
 COPY . .
 RUN printf '%s\n' "{\"ApiBaseUrl\":\"${ApiBaseUrl}\",\"UseMockApi\":${UseMockApi}}" > BattleShip.App/wwwroot/appsettings.json
 RUN dotnet publish BattleShip.App/BattleShip.App.csproj -c Release -o /app/publish /p:UseAppHost=false
+RUN chmod -R a+rX /app/publish/wwwroot
 
 FROM nginx:alpine AS final
 COPY BattleShip.App/nginx.conf /etc/nginx/conf.d/default.conf
