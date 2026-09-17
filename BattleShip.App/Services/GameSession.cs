@@ -4,11 +4,13 @@ using Microsoft.JSInterop;
 
 namespace BattleShip.App.Services;
 
-public sealed class GameSession(IGameApiClient client, IJSRuntime js)
+public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServiceProvider services, SoundFx sfx)
 {
     private readonly List<TurnLogEntry> _history = [];
+    private bool _finishCuePlayed;
 
     public GameDto? Game { get; private set; }
+    public GameStatsDto? Stats { get; private set; }
     public BoardDto? PlayerBoard { get; private set; }
     public BoardDto? OpponentBoard { get; private set; }
     public string? AlertMessage { get; private set; }
@@ -21,6 +23,10 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     public bool AwaitingOpponent => Game?.Status == GameStatus.Waiting;
     public bool CanJoin => Game is { Mode: GameMode.VsPlayer, Status: GameStatus.Waiting } && MySide is null;
     public bool IsPlacingFleet => Game?.Status == GameStatus.PlacingFleet;
+    public bool HasPlacedFleet { get; private set; }
+    public bool NeedsFleetPlacement => Game?.Status == GameStatus.PlacingFleet && !HasPlacedFleet;
+    public bool AwaitingOpponentFleet =>
+        Game is { Mode: GameMode.VsPlayer, Status: GameStatus.PlacingFleet } && HasPlacedFleet;
 
     public event Action? Changed;
 
@@ -76,10 +82,14 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
             try
             {
                 var latest = await client.GetGameAsync(Game.Id, ct);
-                if (latest.Status != Game.Status)
+                if (latest.Status != Game.Status || latest.ShotCount != Game.ShotCount)
                 {
+                    var previousBoard = PlayerBoard;
                     Game = latest;
                     await RefreshBoardsAsync();
+                    await RefreshStatsAsync(ct);
+                    await PlayIncomingFromBoardDiffAsync(previousBoard, PlayerBoard);
+                    await PlayFinishIfNeededAsync();
                     Changed?.Invoke();
                 }
             }
@@ -96,6 +106,8 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     public Task StartGameAsync(int boardSize, Difficulty difficulty, GameMode mode) => RunAsync(async () =>
     {
         _history.Clear();
+        HasPlacedFleet = false;
+        _finishCuePlayed = false;
         var created = await client.CreateGameAsync(new CreateGameRequest(boardSize, difficulty, mode));
         Game = ToGameDto(created.Id, created.Mode, created.Status, created.CurrentTurn, created.BoardSize,
             created.ShotCount, created.CreatedAt);
@@ -108,6 +120,7 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     public Task LoadGameAsync(Guid id) => RunAsync(async () =>
     {
         _history.Clear();
+        HasPlacedFleet = false;
         Game = await client.GetGameAsync(id);
         if (Game.Mode == GameMode.VsComputer)
         {
@@ -119,10 +132,13 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
             (PlayerToken, MySide) = await RestoreTokenAsync(id);
         }
         await RefreshBoardsAsync();
+        await RefreshStatsAsync();
+        _finishCuePlayed = IsFinished(Game.Status);
     });
 
     public Task JoinGameAsync(Guid id) => RunAsync(async () =>
     {
+        HasPlacedFleet = false;
         var joined = await client.JoinGameAsync(id);
         Game = ToGameDto(joined.Id, joined.Mode, joined.Status, joined.CurrentTurn, joined.BoardSize,
             joined.ShotCount, joined.CreatedAt);
@@ -153,13 +169,29 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
         var result = await client.FireShotAsync(Game.Id, new ShotRequest(x, y), PlayerToken);
         _history.Add(TurnLogEntry.FromShot(result));
 
+        await PlayShotCueAsync(result);
+
+
         if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
         {
+            await Task.Delay(TimeSpan.FromSeconds(2));          
             await PlayComputerTurnAsync();
+
+            Game = await client.GetGameAsync(Game.Id);
+            await RefreshBoardsAsync();
+            Changed?.Invoke();
+
+            await Task.Delay(TimeSpan.FromSeconds(2));
+
+            var computerResult = await client.FireShotAsync(Game.Id, new ShotRequest(null, null), PlayerToken);
+            _history.Add(computerResult);
+            await PlayShotCueAsync(computerResult);
         }
 
         Game = await client.GetGameAsync(Game.Id);
         await RefreshBoardsAsync();
+        await RefreshStatsAsync();
+        await PlayFinishIfNeededAsync();
     });
 
     public Task UsePowerUpAsync(UsePowerUpRequest request) => RunAsync(async () =>
@@ -194,6 +226,31 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
             : TurnLogEntry.FromShot(computerResult.Shot!));
     }
 
+    private async Task RefreshStatsAsync(CancellationToken ct = default)
+    {
+        if (Game is null)
+        {
+            Stats = null;
+            return;
+        }
+
+        var statsClient = services.GetService<IGameStatsClient>();
+        if (statsClient is null)
+        {
+            Stats = null;
+            return;
+        }
+
+        try
+        {
+            Stats = await statsClient.GetGameStatsAsync(Game.Id, ct);
+        }
+        catch
+        {
+            Stats = null;
+        }
+    }
+
     private async Task RefreshBoardsAsync()
     {
         if (Game is null)
@@ -201,7 +258,14 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
             return;
         }
 
+        if (Game.Mode == GameMode.VsPlayer && string.IsNullOrWhiteSpace(PlayerToken))
+        {
+            return;
+        }
+
         PlayerBoard = await client.GetPlayerBoardAsync(Game.Id, PlayerToken);
+
+        SyncHasPlacedFleetFromBoard();
 
         if (Game.Status is GameStatus.Waiting or GameStatus.PlacingFleet)
         {
@@ -209,6 +273,27 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
         }
 
         OpponentBoard = await client.GetOpponentBoardAsync(Game.Id, PlayerToken);
+    }
+
+    private void SyncHasPlacedFleetFromBoard()
+    {
+        if (Game is not { Mode: GameMode.VsPlayer, Status: GameStatus.PlacingFleet })
+        {
+            return;
+        }
+
+        HasPlacedFleet = BoardHasCompleteFleet(PlayerBoard);
+    }
+
+    private static bool BoardHasCompleteFleet(BoardDto? board)
+    {
+        if (board is null)
+        {
+            return false;
+        }
+
+        var expectedShipCells = GameOptions.DefaultFleet.Sum(ship => ship.Length);
+        return board.Cells.Count(cell => cell.State == VisibleCellState.Ship) == expectedShipCells;
     }
 
     private async Task PersistTokenAsync()
@@ -253,6 +338,85 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js)
     }
 
     private static string TokenKey(Guid id) => $"battleship.token.{id}";
+
+    private Task PlayShotCueAsync(ShotResultDto result)
+    {
+        var incoming = MySide is not null && result.Shooter != MySide;
+        return sfx.PlayShotAsync(result.Shot.Outcome, incoming);
+    }
+
+    private Task PlayIncomingFromBoardDiffAsync(BoardDto? before, BoardDto? after)
+    {
+        var cue = DetectIncomingCue(before, after);
+        return cue is null ? Task.CompletedTask : sfx.PlayAsync(cue);
+    }
+
+    private static string? DetectIncomingCue(BoardDto? before, BoardDto? after)
+    {
+        if (before is null || after is null)
+        {
+            return null;
+        }
+
+        var previous = before.Cells.ToDictionary(cell => (cell.X, cell.Y), cell => cell.State);
+        var sunk = 0;
+        var hits = 0;
+        var misses = 0;
+
+        foreach (var cell in after.Cells)
+        {
+            if (!previous.TryGetValue((cell.X, cell.Y), out var prior) || prior == cell.State)
+            {
+                continue;
+            }
+
+            switch (cell.State)
+            {
+                case VisibleCellState.Sunk:
+                    sunk++;
+                    break;
+                case VisibleCellState.Hit:
+                    hits++;
+                    break;
+                case VisibleCellState.Miss:
+                    misses++;
+                    break;
+            }
+        }
+
+        if (sunk > 0)
+        {
+            return "incoming-sunk";
+        }
+
+        if (hits > 0)
+        {
+            return "incoming-hit";
+        }
+
+        return misses > 0 ? "incoming-miss" : null;
+    }
+
+    private async Task PlayFinishIfNeededAsync()
+    {
+        if (Game is null || _finishCuePlayed || !IsFinished(Game.Status))
+        {
+            return;
+        }
+
+        _finishCuePlayed = true;
+        await Task.Delay(450);
+        await sfx.PlayAsync(IWon ? "victory" : "defeat");
+    }
+
+    private bool IWon => Game?.Status switch
+    {
+        GameStatus.PlayerWon => MySide == PlayerSide.Player,
+        GameStatus.ComputerWon => MySide == PlayerSide.Computer,
+        GameStatus.Player1Won => MySide == PlayerSide.Player1,
+        GameStatus.Player2Won => MySide == PlayerSide.Player2,
+        _ => false,
+    };
 
     private static GameDto ToGameDto(
         Guid id, GameMode mode, GameStatus status, PlayerSide? currentTurn,

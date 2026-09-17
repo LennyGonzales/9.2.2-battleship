@@ -1,4 +1,8 @@
 .war-room__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     background: var(--br-bg-elevated);
     border-bottom: 1px solid var(--br-olive);
     padding: 0.85rem 1.5rem;
@@ -19,4 +23,26 @@
 .war-room__brand-mark {
     color: var(--br-radar);
     font-size: 1.3rem;
+}
+
+.sfx-toggle {
+    font-family: var(--font-hud);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    color: var(--br-radar);
+    background: transparent;
+    border: 1px solid var(--br-olive-light);
+    border-radius: 3px;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+}
+
+.sfx-toggle:hover {
+    border-color: var(--br-radar);
+}
+
+.sfx-toggle--muted {
+    color: var(--br-text-dim);
+    border-color: var(--br-olive);
 }

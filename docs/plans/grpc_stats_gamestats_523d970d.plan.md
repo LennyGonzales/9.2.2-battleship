@@ -223,9 +223,9 @@ docker compose up --build -d api
 
 ---
 
-## 7. Passe front (ultérieure, non incluse)
+## 7. Passe front (faite — voir `front_grpc_gamestats_8bacbfaf.plan.md`)
 
-Quand tu l'attaqueras :
+Implémenté :
 
 - packages `Grpc.Net.Client`, `Grpc.Net.Client.Web`, `Grpc.Tools` (Client) dans [`BattleShip.App.csproj`](battleship/BattleShip.App/BattleShip.App.csproj) ;
 - `IGameStatsClient` + appel depuis [`GameSession`](battleship/BattleShip.App/Services/GameSession.cs) après chaque tir ;

@@ -1,6 +1,34 @@
-﻿<header class="war-room__header">
+﻿@implements IDisposable
+@inject SoundFx Sfx
+
+<header class="war-room__header">
     <NavLink href="" Match="NavLinkMatch.All" class="war-room__brand-link">
         <span class="war-room__brand-mark" aria-hidden="true">⌖</span>
-        BATTLESHIP <span class="hud-label">// COMMAND</span>
+        BATTLESHIP
     </NavLink>
+    <button type="button"
+            class="sfx-toggle @(Sfx.Muted ? "sfx-toggle--muted" : "")"
+            aria-pressed="@Sfx.Muted"
+            aria-label="@(Sfx.Muted ? "Activer les effets sonores" : "Couper les effets sonores")"
+            @onclick="ToggleMuteAsync">
+        @(Sfx.Muted ? "SON OFF" : "SON ON")
+    </button>
 </header>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Sfx.Changed += StateHasChanged;
+            await Sfx.InitializeAsync();
+        }
+    }
+
+    private async Task ToggleMuteAsync() => await Sfx.ToggleMutedAsync();
+
+    public void Dispose()
+    {
+        Sfx.Changed -= StateHasChanged;
+    }
+}

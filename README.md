@@ -1,5 +1,7 @@
 # BattleShip — Bataille Navale
 
+![CI](https://github.com/LennyGonzales/9.2.2-battleship/actions/workflows/ci.yml/badge.svg)
+
 Projet scolaire C# / ASP.NET Core (.NET 10).
 
 ## Prérequis
@@ -12,6 +14,8 @@ Projet scolaire C# / ASP.NET Core (.NET 10).
 ```bash
 docker compose up --build
 ```
+
+Sur Mac Apple Silicon, les services `api`, `app` et `sdk` sont configurés en `linux/amd64` dans `docker-compose.yml` (contournement d'un crash `protoc` gRPC en ARM dans Docker).
 
 | Service | URL |
 |---------|-----|
@@ -30,6 +34,16 @@ docker compose up --build
 docker compose --profile tools run --rm sdk dotnet build
 docker compose --profile tools run --rm sdk dotnet test
 ```
+
+## CI (GitHub Actions)
+
+Workflow Docker-only [`.github/workflows/ci.yml`](.github/workflows/ci.yml), déclenché sur **push** et **pull request** vers `main` :
+
+1. `./scripts/dotnet.sh build`
+2. `./scripts/dotnet.sh test --no-build`
+3. `docker compose build api app`
+
+Résultats : onglet **Actions** du dépôt [github.com/LennyGonzales/9.2.2-battleship](https://github.com/LennyGonzales/9.2.2-battleship).
 
 ## Structure
 
@@ -123,3 +137,16 @@ grpcurl -plaintext -d "{\"game_id\":\"$ID\"}" \
 ```
 
 Erreurs attendues : `InvalidArgument` (GUID invalide), `NotFound` (partie inconnue).
+
+### Depuis le navigateur (Blazor)
+
+```bash
+docker compose up --build
+```
+
+1. Ouvrir http://localhost:8081
+2. Créer une partie PvE, placer la flotte, tirer sur la grille adverse
+3. Le panneau HUD affiche les compteurs gRPC (tirs/touches des deux côtés)
+4. DevTools → Network : requête gRPC-Web vers `localhost:8080`
+
+Les stats gRPC ne s'affichent pas en mode mock (`UseMockApi: true`).

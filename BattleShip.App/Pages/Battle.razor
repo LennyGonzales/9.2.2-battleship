@@ -30,14 +30,22 @@ else if (Session.AwaitingOpponent)
         }
     </section>
 }
-else if (Session.IsPlacingFleet)
+else if (Session.AwaitingOpponentFleet)
+{
+    <section class="radar-panel battle__waiting">
+        <h1>Flotte deployee</h1>
+        <AlertBanner Message="@Session.AlertMessage" />
+        <p class="hud-label">En attente du deploiement de l'adversaire…</p>
+    </section>
+}
+else if (Session.NeedsFleetPlacement)
 {
     <AlertBanner Message="@Session.AlertMessage" />
     <FleetDeployment BoardSize="Session.Game.BoardSize" IsBusy="Session.IsBusy" PlayerBoard="Session.PlayerBoard" OnDeploy="HandleDeployAsync" />
 }
 else
 {
-    <StatusConsole Game="Session.Game" />
+    <StatusConsole Game="Session.Game" Stats="Session.Stats" />
 
     <AlertBanner Message="@Session.AlertMessage" />
 

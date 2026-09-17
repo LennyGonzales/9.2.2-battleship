@@ -9,6 +9,7 @@ services:
     profiles: [tools]
 
   api:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: BattleShip.API/Dockerfile
@@ -22,6 +23,7 @@ services:
       Cors__AllowedOrigins__0: http://localhost:8081
 
   app:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: BattleShip.App/Dockerfile

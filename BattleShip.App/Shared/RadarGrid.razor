@@ -9,13 +9,32 @@
         @foreach (var cell in Board.Cells)
         {
             <button type="button"
+                    @key="(cell.X, cell.Y)"
                     class="radar-cell @CellClass(cell.State)"
                     disabled="@(!Interactive || !IsTargetable(cell.State))"
                     @onclick="() => HandleClickAsync(cell)"
                     aria-label="@($"{(char)('A' + cell.X)}{cell.Y + 1}")">
-                @if (cell.State is VisibleCellState.Hit or VisibleCellState.Sunk)
+                @if (cell.State == VisibleCellState.Miss)
                 {
+                    <span class="radar-cell__splash" aria-hidden="true"></span>
+                    <span class="radar-cell__droplets" aria-hidden="true"></span>
+                }
+                else if (cell.State == VisibleCellState.Hit)
+                {
+                    <span class="radar-cell__burst" aria-hidden="true"></span>
+                    <span class="radar-cell__sparks" aria-hidden="true"></span>
                     <span class="radar-cell__ping" aria-hidden="true"></span>
+                }
+                else if (cell.State == VisibleCellState.Sunk)
+                {
+                    <span class="radar-cell__vortex" aria-hidden="true"></span>
+                    <span class="radar-cell__rift" aria-hidden="true"></span>
+                    <span class="radar-cell__ping radar-cell__ping--abyss" aria-hidden="true"></span>
+                }
+                else if (IsStruckIsland(cell.State))
+                {
+                    <span class="radar-cell__dust" aria-hidden="true"></span>
+                    <span class="radar-cell__shards" aria-hidden="true"></span>
                 }
             </button>
         }
@@ -29,7 +48,7 @@
     [Parameter] public string Title { get; set; } = "";
     [Parameter] public Func<VisibleCellState, bool>? TargetPredicate { get; set; }
 
-    private static string CellClass(VisibleCellState state) => state switch
+    private string CellClass(VisibleCellState state) => state switch
     {
         VisibleCellState.Unknown => "radar-cell--unknown",
         VisibleCellState.Empty => "radar-cell--empty",
@@ -37,6 +56,7 @@
         VisibleCellState.Miss => "radar-cell--miss",
         VisibleCellState.Hit => "radar-cell--hit",
         VisibleCellState.Sunk => "radar-cell--sunk",
+        VisibleCellState.Obstacle when IsStruckIsland(state) => "radar-cell--obstacle radar-cell--obstacle-struck",
         VisibleCellState.Obstacle => "radar-cell--obstacle",
         _ => "",
     };
