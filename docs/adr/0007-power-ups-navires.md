@@ -19,7 +19,7 @@ l'exposer côté contrat API.
 ## Options envisagées
 
 1. **Power-ups uniquement côté mock (front)** — jouable immédiatement, mais viole le principe
-   « les règles validées côté serveur » de `PROMPT-INIT.md` et crée une divergence durable entre
+   « les règles validées côté serveur » de `PROMPT-ARCHITECTURE.md` et crée une divergence durable entre
    mock et backend réel.
 2. **Power-ups uniquement côté backend réel** — respecte la couche serveur-autoritative, mais rend
    la fonctionnalité injouable tant que `UseMockApi=true` reste la valeur par défaut du front.
@@ -90,7 +90,7 @@ puissance du leurre) ou si un power-up supplémentaire est ajouté à une flotte
 
 - [`docs/superpowers/specs/2026-09-16-ship-powerups-design.md`](../superpowers/specs/2026-09-16-ship-powerups-design.md)
 - [`docs/adr/0006-modes-de-jeu.md`](0006-modes-de-jeu.md)
-- [`PROMPT-INIT.md`](../../PROMPT-INIT.md)
+- [`PROMPT-ARCHITECTURE.md`](../../PROMPT-ARCHITECTURE.md)
 - [`swagger.yaml`](../../swagger.yaml)
 - [`BattleShip.API/Services/GameEngine.cs`](../../BattleShip.API/Services/GameEngine.cs)
 - [`BattleShip.App/Services/MockGameApiClient.cs`](../../BattleShip.App/Services/MockGameApiClient.cs)

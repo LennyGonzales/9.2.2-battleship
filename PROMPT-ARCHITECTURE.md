@@ -1,5 +1,7 @@
 # Prompt d'initialisation — Bataille Navale (architecture)
 
+> **Note** : document d'initialisation (étape squelette). L'état livré du projet est décrit dans [`CONTEXTE-IA.md`](CONTEXTE-IA.md) et [`README.md`](README.md).
+
 Tu es un architecte logiciel C# / ASP.NET Core. Tu m'aides à initialiser le projet scolaire « Bataille Navale » en binôme (5 jours, évaluation sur la qualité du code, des décisions et des vérifications).
 
 ## Environnement Docker uniquement (contrainte forte)

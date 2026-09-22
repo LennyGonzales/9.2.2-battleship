@@ -13,13 +13,13 @@ per endpoint, and a working gRPC-Web service (`GameStatsGrpcService`). `BattleSh
 domain layer (`Models/Domain/`: `Game`, `Board`, `Ship`, power-ups, etc.) and the shared contracts under
 `Models/Contracts/` (mirroring `swagger.yaml`). `BattleShip.App` is a full, playable Blazor WebAssembly front
 end that talks to the real API by default — see "Front-end mock mode" below for the client-side mock still
-kept behind the same interface. `PROMPT-INIT.md` at the repo root remains the authoritative (French) spec for
-the target architecture, layering rules, API/DTO contracts, gRPC-Web contract, and required ADRs. All ADRs
-0001–0007 now exist under `docs/adr/` (0001 layering, 0002 game storage, 0003 REST contract, 0004 gRPC
-statistics, 0005 Docker environment, 0006 game modes, 0007 ship power-ups).
+kept behind the same interface. `PROMPT-ARCHITECTURE.md` at the repo root is the original architecture
+spec; `CONTEXTE-IA.md` and `README.md` reflect the current delivered state. All ADRs 0001–0007 exist under
+`docs/adr/` (0001 layering, 0002 game storage, 0003 REST contract, 0004 gRPC statistics, 0005 Docker
+environment, 0006 game modes, 0007 ship power-ups).
 
-`swagger.yaml` at the repo root already documents the target REST contract (routes, DTOs, HTTP codes) ahead of
-the implementation — treat it as the contract to implement against, not as documentation of existing behavior.
+`swagger.yaml` at the repo root is the versioned REST contract (routes, DTOs, HTTP codes) — keep it aligned
+with the implemented API.
 
 ## Docker-only workflow (hard constraint)
 
@@ -68,16 +68,16 @@ Four projects in `BattleShip.slnx`, with a strict, one-directional dependency gr
   Never `dotnet run`/`dotnet watch` this locally — it's always served through its Docker/nginx image.
 - **`BattleShip.Tests`** — xUnit. References `API` and `Models`.
 
-Key contract rules to preserve when implementing the domain (see `PROMPT-INIT.md` for full detail):
+Key contract rules to preserve when implementing the domain (see `PROMPT-ARCHITECTURE.md` for full detail):
 
 - DTOs sent to a player must never reveal an opponent's undiscovered ship positions — masking belongs in the
   API's mapping layer, not the domain model.
 - FluentValidation validators are called **explicitly** (`ValidateAsync`) inside endpoints — no implicit/magic
   validation pipeline.
-- At least one gRPC-Web exchange must work end-to-end between the Blazor front and the API (contract lives in
-  `Protos/battleship.proto` once created), demonstrating both a success and an expected error path.
+- At least one gRPC-Web exchange must work end-to-end between the Blazor front and the API (contract in
+  `Protos/battleship.proto`), demonstrating both a success and an expected error path.
 - .NET 10 has no Swagger UI: API docs are `AddOpenApi()`/`MapOpenApi()` (dev-only) plus the versioned
-  `BattleShip.API/BattleShip.API.http` file for manual calls — don't reintroduce Swagger UI.
+  `api.http` file at the repo root for manual calls — don't reintroduce Swagger UI.
 
 ### Front-end mock mode
 
@@ -86,7 +86,7 @@ Key contract rules to preserve when implementing the domain (see `PROMPT-INIT.md
 switch in `Program.cs`:
 - `MockGameApiClient` — a full in-memory Battleship engine (fleet placement, shot resolution, a computer
   opponent), kept as an offline/demo fallback behind the same interface. This deliberately holds client-side
-  game rules behind the `IGameApiClient` interface — not a `PROMPT-INIT.md` layering violation, since the
+  game rules behind the `IGameApiClient` interface — not a `PROMPT-ARCHITECTURE.md` layering violation, since the
   real `BattleShip.API` remains the only server-authoritative implementation.
 - `HttpGameApiClient` — the real implementation, calling the routes in `swagger.yaml`.
 
@@ -97,11 +97,9 @@ checked-in file, when building the image.
 
 ## Documentation map
 
-- `PROMPT-INIT.md` — full architecture spec/constraints for this project (French); the source of truth for what
-  to build next.
-- `swagger.yaml` — target REST API contract.
-- `docs/adr/` — architecture decision records (gabarit/template is in `PROMPT-INIT.md`).
+- `PROMPT-ARCHITECTURE.md` — original architecture spec/constraints.
+- `CONTEXTE-IA.md` — current project context, backlog status, and known limits.
+- `swagger.yaml` — versioned REST API contract.
+- `docs/adr/` — architecture decision records (gabarit/template is in `PROMPT-ARCHITECTURE.md`).
 - `README.md` — Docker workflow, ports, project layout (French).
-- `../csharp-school/Ressources Bataille Navale/` (sibling directory, outside this git repo) — course materials:
-  `Referentiel.md` is the grading rubric, `CONTEXTE-IA.md` gives project context, `PROMPTS.md`/`REVUE-IA.md` are
-  templates this repo's own `PROMPTS.md`/`REVUE-IA.md` deliverables should follow once created.
+- `PROMPTS.md` and `REVUE-IA.md` — IA exchange logs and reviews.

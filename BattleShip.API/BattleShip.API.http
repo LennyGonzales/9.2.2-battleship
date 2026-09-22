@@ -1,6 +1,7 @@
-@BattleShip.API_HostAddress = http://localhost:5195
+# Essais manuels : utiliser api.http à la racine du dépôt (port 8080, docker compose).
+# Ce fichier est conservé pour compatibilité IDE ; il n'est plus la référence des scénarios.
 
-GET {{BattleShip.API_HostAddress}}/weatherforecast/
-Accept: application/json
+@api = http://localhost:8080
 
-###
+### Voir api.http à la racine pour les scénarios complets
+GET {{api}}/openapi/v1.json

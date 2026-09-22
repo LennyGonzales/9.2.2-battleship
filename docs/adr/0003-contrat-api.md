@@ -6,7 +6,7 @@ Accepté — 2026-03-15
 
 ## Contexte
 
-Le front Blazor WebAssembly consomme l'API ASP.NET Core via HTTP. Le contrat REST est défini dans [`swagger.yaml`](../../swagger.yaml). La première route à implémenter est `POST /api/games`, qui crée une partie contre l'ordinateur et place les deux flottes.
+Le front Blazor WebAssembly consomme l'API ASP.NET Core via HTTP. Le contrat REST est défini dans [`swagger.yaml`](../../swagger.yaml). `POST /api/games` crée une partie (PvE ou PvP) et retourne un `GameDto` minimal ; le placement des flottes passe par `POST /api/games/{id}/fleet`.
 
 ## Options envisagées
 
@@ -47,7 +47,7 @@ curl -i http://localhost:8080/api/games/00000000-0000-0000-0000-000000000000
 curl -s http://localhost:8080/openapi/v1.json | grep -F '"/api/games'
 ```
 
-Revoir si le contrat OpenAPI généré diverge de `swagger.yaml` après ajout des routes suivantes.
+Revoir si le contrat OpenAPI généré diverge de `swagger.yaml` après modification du contrat.
 
 ## Références
 

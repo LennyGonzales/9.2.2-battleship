@@ -23,7 +23,7 @@ Option 2 retenue :
 - **PvE** : création → `PlacingFleet` (grille joueur vide) ; `POST /fleet` place joueur + ordi auto → `PlayerTurn`, pas de token
 - **PvP** : création → `Waiting` + grille J1 vide + token J1 ; `POST /join` → `PlacingFleet` + grille J2 vide + token J2 ; chaque joueur `POST /fleet` → `Player1Turn` quand les deux flottes sont placées
 - Token retourné uniquement à la création (PvP) et au join ; **absent** de `GET /api/games/{id}`
-- Header `X-Player-Token` documenté pour les routes futures `shots` et `board/*` en PvP
+- Header `X-Player-Token` requis sur `shots`, `board/*` et `fleet` en PvP
 - `IComputerOpponent` pour le tir ordinateur sur `ComputerTurn`
 - `POST /shots` : un tir par requête ; le front PvE enchaîne joueur puis ordinateur
 

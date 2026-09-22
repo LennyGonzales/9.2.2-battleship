@@ -97,8 +97,8 @@ Résultats : onglet **Actions** du dépôt [github.com/LennyGonzales/9.2.2-battl
 - Essais manuels : `[api.http](api.http)`
 - Décisions d'architecture : `[docs/adr/](docs/adr/)`
 - Contexte projet : `[CONTEXTE-IA.md](CONTEXTE-IA.md)`
-- Échanges IA : `[PROMPTS.md](PROMPTS.md)` (backend) et `[PROMPTS-FRONT.md](PROMPTS-FRONT.md)` (frontend)
-- Revues IA : `[REVUE-IA.md](REVUE-IA.md)` (backend) et `[REVUE-IA-FRONT.md](REVUE-IA-FRONT.md)` (frontend)
+- Échanges IA : `[PROMPTS.md](PROMPTS.md)`
+- Revues IA : `[REVUE-IA.md](REVUE-IA.md)`
 
 ## API — POST /api/games
 
@@ -135,7 +135,7 @@ Réponse attendue en succès : `200 OK`, corps `GameDto` JSON. Partie introuvabl
 
 ## API — PvP (joueur vs joueur)
 
-Fondation dual-mode : création en `Waiting`, join place les flottes et retourne un token joueur 2.
+Fondation dual-mode : création en `Waiting` + token joueur 1 ; `POST /join` retourne le token joueur 2 ; chaque joueur place sa flotte via `POST /fleet`.
 
 ```bash
 # Creer une partie PvP

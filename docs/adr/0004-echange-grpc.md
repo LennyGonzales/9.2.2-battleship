@@ -8,7 +8,7 @@ Accepté — 2026-09-16
 
 Les statistiques agrégées (nombre de tirs, touches, statut) sont une lecture seule, sans effet sur l'état de la partie — un bon candidat pour un contrat RPC dédié plutôt qu'une route REST supplémentaire.
 
-Le contrat est défini dans [`Protos/battleship.proto`](../../Protos/battleship.proto) (aligné sur [`PROMPT-INIT.md`](../../PROMPT-INIT.md)).
+Le contrat est défini dans [`Protos/battleship.proto`](../../Protos/battleship.proto) (aligné sur [`PROMPT-ARCHITECTURE.md`](../../PROMPT-ARCHITECTURE.md)).
 
 ## Décision
 
