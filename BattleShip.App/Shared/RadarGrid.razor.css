@@ -500,30 +500,26 @@
     @keyframes sunk-corkscrew {
         0% {
             transform: scale(1) rotate(0deg) skewX(0deg);
-            background: var(--br-alert);
             clip-path: inset(0);
-            filter: brightness(1.8) hue-rotate(0deg);
-            box-shadow: 0 0 0 0 rgba(209, 69, 59, 0.7);
+            filter: brightness(1.8);
+            box-shadow: 0 0 0 0 rgba(139, 61, 255, 0.7);
         }
         16% {
             transform: scale(1.38) rotate(-28deg) skewX(-22deg);
-            background: #e879f9;
             clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-            filter: brightness(1.9) saturate(2) hue-rotate(35deg);
+            filter: brightness(1.9) saturate(2);
             box-shadow:
-                4px 0 0 #f0abfc,
-                -4px 0 0 #67e8f9,
+                4px 0 0 #c084fc,
+                -4px 0 0 #c084fc,
                 0 0 16px #c084fc;
         }
         38% {
             transform: scale(0.18) rotate(210deg) skewX(28deg);
-            background: #6d28d9;
             clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-            filter: blur(1.2px) hue-rotate(70deg);
+            filter: blur(1.2px);
         }
         62% {
             transform: scale(1.22) rotate(338deg) skewX(-10deg);
-            background: var(--br-sunk);
             clip-path: polygon(18% 0%, 82% 0%, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0% 82%, 0% 18%);
             filter: drop-shadow(0 0 12px var(--br-sunk-glow));
         }
@@ -533,7 +529,6 @@
         }
         100% {
             transform: none;
-            background: var(--br-sunk-deep);
             clip-path: inset(0);
             filter: none;
             box-shadow:
