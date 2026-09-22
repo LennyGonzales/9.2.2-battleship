@@ -171,16 +171,21 @@ public sealed class GameSession(IGameApiClient client, IJSRuntime js, IServicePr
 
         await PlayShotCueAsync(result);
 
+        Game = await client.GetGameAsync(Game.Id);
+        await RefreshBoardsAsync();
+        await RefreshStatsAsync();
+        Changed?.Invoke();
 
         if (Game.Mode == GameMode.VsComputer && result.Status is GameStatus.ComputerTurn)
         {
             await Task.Delay(TimeSpan.FromSeconds(2));
             await PlayComputerTurnAsync();
+
+            Game = await client.GetGameAsync(Game.Id);
+            await RefreshBoardsAsync();
+            await RefreshStatsAsync();
         }
 
-        Game = await client.GetGameAsync(Game.Id);
-        await RefreshBoardsAsync();
-        await RefreshStatsAsync();
         await PlayFinishIfNeededAsync();
     });
 

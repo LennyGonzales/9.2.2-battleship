@@ -414,7 +414,7 @@ components:
       type: string
       description: |
         Etat d'une cellule tel que le joueur a le droit de le voir.
-        Grille joueur : Empty, Ship, Hit, Sunk, Obstacle, ObstacleHit.
+        Grille joueur : Empty, Ship, Miss, Hit, Sunk, Obstacle, ObstacleHit.
         Grille adverse : Unknown, Miss, Hit, Sunk, ObstacleHit (ObstacleHit uniquement apres un tir dessus).
       enum:
         - Unknown
